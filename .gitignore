@@ -58,3 +58,6 @@ create_icon.py
 dist/
 build/
 *.msi
+
+# Release packages (available on GitHub releases)
+releases/*.zip
