@@ -8,9 +8,15 @@ A professional, web-based tool for generating hierarchical Azure billing reports
 
 Transform complex Azure billing Excel files into interactive, hierarchical reports that show resource relationships and dependencies. Perfect for MSPs, consultants, and IT professionals who need to present Azure costs to clients with professional markup handling.
 
-## 🚀 **Live Demo**
+## 🚀 **Quick Start Options**
+
+### **Option 1: Web Browser (Recommended)**
 
 [**Try it now!**](https://cafasdon.github.io/azurebillreport/) - No installation required, works directly in your browser.
+
+### **Option 2: Windows Installation**
+
+Download and run `INSTALL.bat` for a complete Windows installation with desktop shortcuts and Start Menu integration.
 
 ## ✨ **Key Features**
 
@@ -63,6 +69,38 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
    - Review hierarchical breakdown with markup details (account manager view)
    - Generate customer-safe report (markup information automatically hidden)
    - Export professional HTML report for client distribution
+
+## 💻 **Windows Installation Package**
+
+For Windows users who prefer a traditional desktop application experience:
+
+### **Installation Features**
+
+- **Desktop Shortcut**: Quick access from desktop
+- **Start Menu Integration**: Professional Windows integration
+- **Sample Data Included**: Example files for testing
+- **Easy Uninstallation**: Standard Windows Add/Remove Programs
+- **No Dependencies**: Works with any modern web browser
+
+### **Installation Steps**
+
+1. **Download**: Clone or download this repository
+2. **Install**: Run `INSTALL.bat` as Administrator
+3. **Launch**: Click desktop shortcut or Start Menu item
+4. **Uninstall**: Use `UNINSTALL.bat` or Windows Add/Remove Programs
+
+### **What Gets Installed**
+
+- Application files in `C:\Program Files\Azure Billing Report Generator\`
+- Desktop shortcut for easy access
+- Start Menu folder with shortcuts to:
+  - Main application
+  - Sample data files
+  - Documentation
+  - GitHub repository
+  - Uninstaller
+
+See `INSTALLER_README.md` for detailed installation documentation.
 
 ## ✨ Key Features
 
