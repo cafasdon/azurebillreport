@@ -14,9 +14,29 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 
 [**Try it now!**](https://cafasdon.github.io/azurebillreport/) - No installation required, works directly in your browser.
 
-### **Option 2: Windows Installation**
+### **Option 2: Download Packages**
 
-Download and run `INSTALL.bat` for a complete Windows installation with desktop shortcuts and Start Menu integration.
+Choose the package that best fits your needs:
+
+#### 📦 **Download Options**
+
+| Package | Size | Use Case | Download |
+|---------|------|----------|----------|
+| **Web-Only** | ~500 KB | Quick start, no installation | [Download ZIP](releases/AzureBillingReportGenerator_WebOnly_v1.0.0.zip) |
+| **Windows Installer** | ~1 MB | Professional Windows installation | [Download ZIP](releases/AzureBillingReportGenerator_WindowsInstaller_v1.0.0.zip) |
+| **Complete Source** | ~2 MB | Development, customization | [Download ZIP](releases/AzureBillingReportGenerator_Complete_v1.0.0.zip) |
+
+#### 🌐 **Web-Only Package**
+
+- Extract and open `azure_billing_generator.html` in any browser
+- Includes sample data for immediate testing
+- No installation required
+
+#### 💻 **Windows Installer Package**
+
+- Extract and run `INSTALL.bat` as Administrator
+- Creates desktop shortcut and Start Menu integration
+- Professional Windows installation experience
 
 ## ✨ **Key Features**
 
