@@ -8,6 +8,10 @@ A professional, web-based tool for generating hierarchical Azure billing reports
 
 Transform complex Azure billing Excel files into interactive, hierarchical reports that show resource relationships and dependencies. Perfect for MSPs, consultants, and IT professionals who need to present Azure costs to clients with professional markup handling.
 
+## 📥 **Quick Download**
+
+**[🚀 Download Latest Release](https://github.com/cafasdon/azurebillreport/releases/latest)** - Choose from Web-Only, Windows Installer, or Complete Source packages.
+
 ## 🚀 **Quick Start Options**
 
 ### **Option 1: Web Browser (Recommended)**
@@ -22,9 +26,11 @@ Choose the package that best fits your needs:
 
 | Package | Size | Use Case | Download |
 |---------|------|----------|----------|
-| **Web-Only** | ~500 KB | Quick start, no installation | [Download ZIP](releases/AzureBillingReportGenerator_WebOnly_v1.0.0.zip) |
-| **Windows Installer** | ~1 MB | Professional Windows installation | [Download ZIP](releases/AzureBillingReportGenerator_WindowsInstaller_v1.0.0.zip) |
-| **Complete Source** | ~2 MB | Development, customization | [Download ZIP](releases/AzureBillingReportGenerator_Complete_v1.0.0.zip) |
+| **Web-Only** | ~500 KB | Quick start, no installation | [📥 Download](https://github.com/cafasdon/azurebillreport/releases/latest) |
+| **Windows Installer** | ~1 MB | Professional Windows installation | [📥 Download](https://github.com/cafasdon/azurebillreport/releases/latest) |
+| **Complete Source** | ~2 MB | Development, customization | [📥 Download](https://github.com/cafasdon/azurebillreport/releases/latest) |
+
+> **📋 Note**: All packages are available on the [GitHub Releases page](https://github.com/cafasdon/azurebillreport/releases/latest). Choose the package that best fits your needs.
 
 #### 🌐 **Web-Only Package**
 
@@ -207,7 +213,7 @@ See `INSTALLER_README.md` for detailed installation documentation.
 
 ### Data Flow
 
-```
+```text
 Azure Excel File → Upload → Parse → Group Hierarchically → Apply Markup → Generate Report
      ↓                ↓        ↓            ↓                ↓              ↓
 Raw Billing Data → Validation → Processing → Resource Tree → Pricing → Customer Report
