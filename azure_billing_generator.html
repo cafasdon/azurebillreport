@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<!--
+Azure Billing Report Generator
+Made by Rodrigo Quintian
+Licensed under Apache 2.0 License
+GitHub: https://github.com/cafasdon/azurebillreport
+-->
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Billing Report Generator</title>
+
+    <!-- External Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        .hidden {
+            display: none !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            margin: 0 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+
+        .step.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .step.completed {
+            background: #28a745;
+            color: white;
+        }
+
+        .upload-zone {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-zone:hover {
+            background: #f8f9fa;
+            border-color: #0056b3;
+        }
+
+        .upload-zone.dragover {
+            background: #e3f2fd;
+            border-color: #1976d2;
+        }
+
+        .currency-option {
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .currency-option:hover {
+            background: #f8f9fa;
+        }
+
+        .currency-option.selected {
+            background: #e3f2fd;
+            border-color: #007bff;
+        }
+
+        .progress {
+            height: 8px;
+        }
+
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border: 1px solid rgba(0, 0, 0, 0.125);
+        }
+
+        /* Native HTML Details/Summary Styling */
+        .resource-hierarchy {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        details {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+        }
+
+        details[open] {
+            background: #e3f2fd;
+            border-color: #007bff;
+        }
+
+        summary {
+            padding: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        summary:hover {
+            background: rgba(0, 123, 255, 0.1);
+        }
+
+        .resource-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .resource-details {
+            flex-grow: 1;
+        }
+
+        .resource-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .resource-type {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .cost-info {
+            text-align: right;
+            min-width: 150px;
+            margin-left: 1rem;
+        }
+
+        .cost-original {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .cost-final {
+            font-weight: 600;
+            color: #28a745;
+            font-size: 1.1em;
+        }
+
+        .cost-markup {
+            font-size: 0.8em;
+            color: #dc3545;
+        }
+
+        .resource-content {
+            padding: 0 1rem 1rem 1rem;
+            border-top: 1px solid #dee2e6;
+            background: white;
+        }
+
+        .meter-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .meter-details {
+            flex-grow: 1;
+        }
+
+        .meter-name {
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .meter-info {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+
+        .summary-stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .level-1 {
+            margin-left: 0;
+        }
+
+        .level-2 {
+            margin-left: 1rem;
+        }
+
+        .level-3 {
+            margin-left: 2rem;
+        }
+
+        .level-4 {
+            margin-left: 3rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container mt-4">
+        <div class="text-center mb-4">
+            <h1><i class="fas fa-sitemap me-2"></i>Azure Billing Report Generator</h1>
+            <p class="lead">Native HTML hierarchical view with proper resource grouping</p>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step1">
+                <i class="fas fa-upload me-2"></i>1. Upload File
+            </div>
+            <div class="step" id="step2">
+                <i class="fas fa-cog me-2"></i>2. Configure
+            </div>
+            <div class="step" id="step3">
+                <i class="fas fa-eye me-2"></i>3. Preview
+            </div>
+            <div class="step" id="step4">
+                <i class="fas fa-magic me-2"></i>4. Generate
+            </div>
+        </div>
+
+        <!-- Step 1: Upload -->
+        <div class="card" id="uploadSection">
+            <div class="card-header">
+                <h5><i class="fas fa-upload me-2"></i>Step 1: Upload Azure Billing File</h5>
+            </div>
+            <div class="card-body">
+                <div class="upload-zone" id="uploadZone">
+                    <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
+                    <h4>Drop your Excel file here</h4>
+                    <p>or click to browse for files</p>
+                    <p class="text-muted">Supported formats: .xls, .xlsx</p>
+                </div>
+                <input type="file" id="fileInput" accept=".xls,.xlsx" class="hidden">
+
+                <div class="alert alert-info mt-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="mb-1"><i class="fas fa-info-circle me-2"></i>Need help with file structure?</h6>
+                            <p class="mb-0 small">Download our sample Excel file to see the expected Azure billing data
+                                format with hierarchical relationships.</p>
+                        </div>
+                        <a href="./example/AzureBilling_Sample_Structure.xlsx"
+                            download="AzureBilling_Sample_Structure.xlsx" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-download me-2"></i>Download Sample
+                        </a>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <strong>Sample includes:</strong> VM with dependencies (disk, OS license, backup) • Resource
+                            groups • Parent-child relationships • Required columns
+                        </small>
+                    </div>
+                </div>
+
+                <div id="uploadProgress" class="mt-3 hidden">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="fileInfo" class="mt-3 hidden">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>File uploaded successfully!</strong>
+                        <div id="fileDetails"></div>
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-primary" onclick="proceedToConfig()">
+                            <i class="fas fa-arrow-right me-2"></i>Configure Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Configure -->
+        <div class="card hidden" id="configSection">
+            <div class="card-header">
+                <h5><i class="fas fa-cog me-2"></i>Step 2: Configure Report Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <h6><i class="fas fa-money-bill-wave me-2"></i>Currency Selection</h6>
+                        <div id="currencyOptions">
+                            <div class="currency-option selected" data-currency="GBP" data-symbol="£"
+                                onclick="selectCurrency('GBP', '£', this)">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>GBP (£)</strong> - British Pound
+                            </div>
+                            <div class="currency-option" data-currency="USD" data-symbol="$"
+                                onclick="selectCurrency('USD', '$', this)">
+                                <i class="far fa-circle me-2"></i>
+                                <strong>USD ($)</strong> - US Dollar
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <h6><i class="fas fa-percentage me-2"></i>Markup Configuration</h6>
+                        <div class="mb-3">
+                            <label for="globalMarkup" class="form-label">Global Markup Percentage</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="globalMarkup" value="0" min="0" max="1000"
+                                    step="0.1">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <div class="form-text">Apply this markup to all costs (e.g., 20% for sales margin)</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="companyName" class="form-label">Company Name (Optional)</label>
+                            <input type="text" class="form-control" id="companyName" placeholder="Your Company Name">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="reportTitle" class="form-label">Report Title</label>
+                            <input type="text" class="form-control" id="reportTitle" value="Azure Billing Report">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-end mt-4">
+                    <button type="button" class="btn btn-outline-secondary me-2" onclick="backToUpload()">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Upload
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="proceedToPreview()">
+                        <i class="fas fa-arrow-right me-2"></i>Preview Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Preview -->
+        <div class="card hidden" id="previewSection">
+            <div class="card-header">
+                <h5><i class="fas fa-eye me-2"></i>Step 3: Hierarchical Data Preview</h5>
+            </div>
+            <div class="card-body">
+                <div id="previewContent">
+                    <!-- Preview content will be populated here -->
+                </div>
+
+                <div class="text-end mt-4">
+                    <button type="button" class="btn btn-outline-secondary me-2" onclick="backToConfig()">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Configuration
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="generateReport()">
+                        <i class="fas fa-magic me-2"></i>Generate Report
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Generate -->
+        <div class="card hidden" id="generateSection">
+            <div class="card-header">
+                <h5><i class="fas fa-magic me-2"></i>Step 4: Generate Report</h5>
+            </div>
+            <div class="card-body">
+                <div id="generateContent">
+                    <!-- Generate content will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Preview Section -->
+        <div class="card hidden mt-4" id="reportPreviewSection">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Hierarchical Report Preview</h5>
+                <div>
+                    <button type="button" class="btn btn-success btn-sm me-2" onclick="exportReport()">
+                        <i class="fas fa-download me-2"></i>Export HTML
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="closeReportPreview()">
+                        <i class="fas fa-times me-2"></i>Close Preview
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-3">
+                <div id="reportContent" style="max-height: 600px; overflow-y: auto;">
+                    <!-- Generated report will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables - simple and clean
+        let uploadedData = null;
+        let processedData = null;
+        let hierarchicalData = null;
+        let currentStep = 1;
+        let globalMarkupPercent = 0;
+        let selectedCurrency = 'GBP';
+        let selectedCurrencySymbol = '£';
+        let companyName = '';
+        let reportTitle = 'Azure Billing Report';
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function () {
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // File upload events
+            document.getElementById('uploadZone').addEventListener('click', function () {
+                document.getElementById('fileInput').click();
+            });
+
+            document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+            // Drag and drop events
+            const uploadZone = document.getElementById('uploadZone');
+            uploadZone.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+
+            uploadZone.addEventListener('dragleave', function (e) {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+            });
+
+            uploadZone.addEventListener('drop', function (e) {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+
+            // Markup input
+            document.getElementById('globalMarkup').addEventListener('input', function () {
+                globalMarkupPercent = parseFloat(this.value) || 0;
+            });
+
+            // Company info
+            document.getElementById('companyName').addEventListener('input', function () {
+                companyName = this.value;
+            });
+
+            document.getElementById('reportTitle').addEventListener('input', function () {
+                reportTitle = this.value || 'Azure Billing Report';
+            });
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            // Validate file type
+            const validTypes = [
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ];
+
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(xls|xlsx)$/i)) {
+                showError('Please select a valid Excel file (.xls or .xlsx)');
+                return;
+            }
+
+            // Show progress
+            document.getElementById('uploadProgress').classList.remove('hidden');
+            document.querySelector('.progress-bar').style.width = '20%';
+
+            // Read the file
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    document.querySelector('.progress-bar').style.width = '60%';
+
+                    // Parse Excel file
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    // Get first sheet
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    document.querySelector('.progress-bar').style.width = '100%';
+
+                    // Process the data
+                    processUploadedData(jsonData, file);
+
+                } catch (error) {
+                    console.error('Error processing file:', error);
+                    showError('Error processing file. Please ensure it\'s a valid Excel file with billing data.');
+                    document.getElementById('uploadProgress').classList.add('hidden');
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processUploadedData(data, file) {
+            uploadedData = data;
+
+            // Validate data structure
+            if (!data || data.length === 0) {
+                showError('The uploaded file appears to be empty or invalid.');
+                return;
+            }
+
+            // Fix Usage Date format and process data
+            uploadedData = uploadedData.map(row => {
+                if (row['Usage Date']) {
+                    // Handle Excel date serial numbers and various date formats
+                    let usageDate = row['Usage Date'];
+                    if (typeof usageDate === 'number') {
+                        // Excel date serial number conversion
+                        const excelEpoch = new Date(1900, 0, 1);
+                        usageDate = new Date(excelEpoch.getTime() + (usageDate - 2) * 24 * 60 * 60 * 1000);
+                    }
+                    row['Usage Date'] = formatDate(usageDate);
+                }
+                return row;
+            });
+
+            // Auto-detect currency from data
+            autoDetectCurrency(data);
+
+            // Show file info
+            document.getElementById('fileDetails').innerHTML = `
+                <div class="mt-2">
+                    <strong>File:</strong> ${file.name}<br>
+                    <strong>Size:</strong> ${(file.size / 1024).toFixed(1)} KB<br>
+                    <strong>Records:</strong> ${data.length.toLocaleString()}<br>
+                    <strong>Detected Currency:</strong> ${selectedCurrency} (${selectedCurrencySymbol})
+                </div>
+            `;
+
+            document.getElementById('fileInfo').classList.remove('hidden');
+            document.getElementById('uploadProgress').classList.add('hidden');
+        }
+
+        function formatDate(date) {
+            if (!date) return 'N/A';
+            if (typeof date === 'string') return date;
+
+            try {
+                const d = new Date(date);
+                if (isNaN(d.getTime())) return 'N/A';
+                return d.toISOString().split('T')[0]; // YYYY-MM-DD format
+            } catch (e) {
+                return 'N/A';
+            }
+        }
+
+        function autoDetectCurrency(data) {
+            // Simple currency detection based on common patterns
+            const sampleData = data.slice(0, 100); // Check first 100 records
+
+            // Look for UK indicators
+            const ukIndicators = sampleData.some(row => {
+                const region = (row['Meter Region'] || '').toLowerCase();
+                const location = (row['Location'] || '').toLowerCase();
+                return region.includes('uk') || location.includes('uk') ||
+                    region.includes('britain') || location.includes('britain');
+            });
+
+            if (ukIndicators) {
+                selectCurrency('GBP', '£', document.querySelector('[data-currency="GBP"]'));
+            } else {
+                selectCurrency('USD', '$', document.querySelector('[data-currency="USD"]'));
+            }
+        }
+
+        function selectCurrency(currency, symbol, element) {
+            selectedCurrency = currency;
+            selectedCurrencySymbol = symbol;
+
+            // Update UI
+            document.querySelectorAll('.currency-option').forEach(option => {
+                option.classList.remove('selected');
+                option.querySelector('i').className = 'far fa-circle me-2';
+            });
+
+            element.classList.add('selected');
+            element.querySelector('i').className = 'fas fa-check-circle me-2';
+        }
+
+        // Navigation functions
+        function proceedToConfig() {
+            if (!uploadedData) {
+                showError('Please upload a file first.');
+                return;
+            }
+            currentStep = 2;
+            updateStepIndicator();
+            showSection('configSection');
+        }
+
+        function backToUpload() {
+            currentStep = 1;
+            updateStepIndicator();
+            showSection('uploadSection');
+        }
+
+        function proceedToPreview() {
+            if (!uploadedData) {
+                showError('Please upload a file first.');
+                return;
+            }
+
+            // Process data with markup
+            processedData = uploadedData.map(row => {
+                const originalCost = parseFloat(row['Total Cost']) || 0;
+                const markupAmount = originalCost * (globalMarkupPercent / 100);
+                const finalCost = originalCost + markupAmount;
+                return {
+                    ...row,
+                    'Original Cost': originalCost,
+                    'Markup Amount': markupAmount,
+                    'Final Cost': finalCost
+                };
+            });
+
+            // Create hierarchical structure using proper Azure resource relationships
+            hierarchicalData = createHierarchicalStructure(processedData);
+
+            // Generate preview
+            generateHierarchicalPreview();
+
+            currentStep = 3;
+            updateStepIndicator();
+            showSection('previewSection');
+        }
+
+        function backToConfig() {
+            currentStep = 2;
+            updateStepIndicator();
+            showSection('configSection');
+        }
+
+        function createHierarchicalStructure(data) {
+            const hierarchy = {};
+
+            // First pass: Group by Resource Group
+            data.forEach(row => {
+                const resourceGroup = row['Resource Group'] || 'Unknown Resource Group';
+                const resourceName = row['Resource Name'] || 'Unknown Resource';
+                const productName = row['Product Name'] || 'Unknown Product';
+                const meterName = row['Meter Name'] || 'Unknown Meter';
+                const tags = row['Tags'] || '';
+
+                // Initialize resource group
+                if (!hierarchy[resourceGroup]) {
+                    hierarchy[resourceGroup] = {
+                        name: resourceGroup,
+                        type: 'Resource Group',
+                        resources: {},
+                        totalCost: 0,
+                        totalOriginalCost: 0,
+                        totalMarkupAmount: 0,
+                        itemCount: 0
+                    };
+                }
+
+                // Initialize resource within group
+                if (!hierarchy[resourceGroup].resources[resourceName]) {
+                    hierarchy[resourceGroup].resources[resourceName] = {
+                        name: resourceName,
+                        type: getResourceType(productName, meterName),
+                        products: {},
+                        totalCost: 0,
+                        totalOriginalCost: 0,
+                        totalMarkupAmount: 0,
+                        itemCount: 0,
+                        tags: tags,
+                        parentResource: extractParentResource(tags)
+                    };
+                }
+
+                // Initialize product within resource
+                const productKey = `${productName}_${meterName}`;
+                if (!hierarchy[resourceGroup].resources[resourceName].products[productKey]) {
+                    hierarchy[resourceGroup].resources[resourceName].products[productKey] = {
+                        name: productName,
+                        meterName: meterName,
+                        type: 'Product/Meter',
+                        items: [],
+                        totalCost: 0,
+                        totalOriginalCost: 0,
+                        totalMarkupAmount: 0,
+                        itemCount: 0
+                    };
+                }
+
+                // Add the individual item
+                const product = hierarchy[resourceGroup].resources[resourceName].products[productKey];
+                product.items.push({
+                    usageDate: row['Usage Date'],
+                    quantity: row['Quantity'],
+                    unitPrice: row['Unit Price'],
+                    originalCost: row['Original Cost'],
+                    markupAmount: row['Markup Amount'],
+                    finalCost: row['Final Cost'],
+                    meterRegion: row['Meter Region']
+                });
+
+                // Update totals at all levels
+                const originalCost = row['Original Cost'];
+                const markupAmount = row['Markup Amount'];
+                const finalCost = row['Final Cost'];
+
+                product.totalOriginalCost += originalCost;
+                product.totalMarkupAmount += markupAmount;
+                product.totalCost += finalCost;
+                product.itemCount += 1;
+
+                const resource = hierarchy[resourceGroup].resources[resourceName];
+                resource.totalOriginalCost += originalCost;
+                resource.totalMarkupAmount += markupAmount;
+                resource.totalCost += finalCost;
+                resource.itemCount += 1;
+
+                hierarchy[resourceGroup].totalOriginalCost += originalCost;
+                hierarchy[resourceGroup].totalMarkupAmount += markupAmount;
+                hierarchy[resourceGroup].totalCost += finalCost;
+                hierarchy[resourceGroup].itemCount += 1;
+            });
+
+            return hierarchy;
+        }
+
+        function getResourceType(productName, meterName) {
+            if (productName.includes('Virtual Machine') || meterName.includes('VM')) return 'Virtual Machine';
+            if (productName.includes('Disk') || meterName.includes('Disk')) return 'Storage Disk';
+            if (productName.includes('Backup') || meterName.includes('Backup')) return 'Backup Service';
+            if (productName.includes('Network') || meterName.includes('Network')) return 'Network Service';
+            if (productName.includes('Storage') || meterName.includes('Storage')) return 'Storage Service';
+            return 'Azure Service';
+        }
+
+        function extractParentResource(tags) {
+            if (!tags) return null;
+            const match = tags.match(/cm-resource-parent[:\s]*([^,;]+)/i);
+            return match ? match[1].trim() : null;
+        }
+
+        function generateHierarchicalPreview() {
+            const totalOriginal = Object.values(hierarchicalData).reduce((sum, rg) => sum + rg.totalOriginalCost, 0);
+            const totalMarkup = Object.values(hierarchicalData).reduce((sum, rg) => sum + rg.totalMarkupAmount, 0);
+            const totalFinal = Object.values(hierarchicalData).reduce((sum, rg) => sum + rg.totalCost, 0);
+            const totalRecords = processedData.length;
+
+            const previewHtml = `
+                <div class="summary-stats">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-value">${totalRecords.toLocaleString()}</div>
+                                <div class="stat-label">Total Records</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-value">${selectedCurrencySymbol}${totalOriginal.toFixed(2)}</div>
+                                <div class="stat-label">Original Cost</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-value">${selectedCurrencySymbol}${totalMarkup.toFixed(2)}</div>
+                                <div class="stat-label">Markup Amount</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-value">${selectedCurrencySymbol}${totalFinal.toFixed(2)}</div>
+                                <div class="stat-label">Final Cost</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6><i class="fas fa-sitemap me-2"></i>Hierarchical Resource View</h6>
+                <p class="text-muted mb-3">Click on items to expand/collapse and view dependencies</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Account Manager Preview:</strong> This preview shows markup details for internal use. The final customer report will only show final costs without markup information.
+                </div>
+
+                <div class="resource-hierarchy">
+                    ${generateNativeTreeHTML(hierarchicalData)}
+                </div>
+            `;
+
+            document.getElementById('previewContent').innerHTML = previewHtml;
+        }
+
+        function generateNativeTreeHTML(hierarchy) {
+            let html = '';
+
+            Object.values(hierarchy).forEach(resourceGroup => {
+                const hasChildren = Object.keys(resourceGroup.resources).length > 0;
+
+                html += `
+                    <details class="level-1">
+                        <summary>
+                            <div class="resource-info">
+                                <div class="resource-details">
+                                    <div class="resource-name">
+                                        <i class="fas fa-folder me-2"></i>${resourceGroup.name}
+                                    </div>
+                                    <div class="resource-type">${resourceGroup.type} • ${Object.keys(resourceGroup.resources).length} resources • ${resourceGroup.itemCount} billing items</div>
+                                </div>
+                                <div class="cost-info">
+                                    <div class="cost-original">Original: ${selectedCurrencySymbol}${resourceGroup.totalOriginalCost.toFixed(2)}</div>
+                                    <div class="cost-final">${selectedCurrencySymbol}${resourceGroup.totalCost.toFixed(2)}</div>
+                                    <div class="cost-markup">+${selectedCurrencySymbol}${resourceGroup.totalMarkupAmount.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </summary>
+                        ${hasChildren ? `<div class="resource-content">${generateResourcesHTML(resourceGroup.resources)}</div>` : ''}
+                    </details>
+                `;
+            });
+
+            return html;
+        }
+
+        function generateResourcesHTML(resources) {
+            let html = '';
+
+            Object.values(resources).forEach(resource => {
+                const hasChildren = Object.keys(resource.products).length > 0;
+                const resourceIcon = getResourceIcon(resource.type);
+
+                html += `
+                    <details class="level-2">
+                        <summary>
+                            <div class="resource-info">
+                                <div class="resource-details">
+                                    <div class="resource-name">
+                                        <i class="${resourceIcon} me-2"></i>${resource.name}
+                                    </div>
+                                    <div class="resource-type">${resource.type} • ${Object.keys(resource.products).length} products • ${resource.itemCount} billing items</div>
+                                    ${resource.parentResource ? `<div class="resource-type"><small>Parent: ${resource.parentResource}</small></div>` : ''}
+                                </div>
+                                <div class="cost-info">
+                                    <div class="cost-original">Original: ${selectedCurrencySymbol}${resource.totalOriginalCost.toFixed(2)}</div>
+                                    <div class="cost-final">${selectedCurrencySymbol}${resource.totalCost.toFixed(2)}</div>
+                                    <div class="cost-markup">+${selectedCurrencySymbol}${resource.totalMarkupAmount.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </summary>
+                        ${hasChildren ? `<div class="resource-content">${generateProductsHTML(resource.products)}</div>` : ''}
+                    </details>
+                `;
+            });
+
+            return html;
+        }
+
+        function generateProductsHTML(products) {
+            let html = '';
+
+            Object.values(products).forEach(product => {
+                const hasChildren = product.items.length > 0;
+
+                html += `
+                    <details class="level-3">
+                        <summary>
+                            <div class="resource-info">
+                                <div class="resource-details">
+                                    <div class="resource-name">
+                                        <i class="fas fa-cube me-2"></i>${product.name}
+                                    </div>
+                                    <div class="resource-type">${product.meterName} • ${product.items.length} usage records</div>
+                                </div>
+                                <div class="cost-info">
+                                    <div class="cost-original">Original: ${selectedCurrencySymbol}${product.totalOriginalCost.toFixed(2)}</div>
+                                    <div class="cost-final">${selectedCurrencySymbol}${product.totalCost.toFixed(2)}</div>
+                                    <div class="cost-markup">+${selectedCurrencySymbol}${product.totalMarkupAmount.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </summary>
+                        ${hasChildren ? `<div class="resource-content">${generateItemsHTML(product.items)}</div>` : ''}
+                    </details>
+                `;
+            });
+
+            return html;
+        }
+
+        function generateItemsHTML(items) {
+            let html = '';
+
+            items.forEach(item => {
+                html += `
+                    <div class="meter-item level-4">
+                        <div class="meter-details">
+                            <div class="meter-name">Usage: ${item.usageDate}</div>
+                            <div class="meter-info">Qty: ${item.quantity} @ ${selectedCurrencySymbol}${(parseFloat(item.unitPrice) || 0).toFixed(4)} | Region: ${item.meterRegion || 'N/A'}</div>
+                        </div>
+                        <div class="cost-info">
+                            <div class="cost-original">Original: ${selectedCurrencySymbol}${item.originalCost.toFixed(2)}</div>
+                            <div class="cost-final">${selectedCurrencySymbol}${item.finalCost.toFixed(2)}</div>
+                            <div class="cost-markup">+${selectedCurrencySymbol}${item.markupAmount.toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            return html;
+        }
+
+        function getResourceIcon(resourceType) {
+            switch (resourceType) {
+                case 'Virtual Machine': return 'fas fa-server';
+                case 'Storage Disk': return 'fas fa-hdd';
+                case 'Backup Service': return 'fas fa-shield-alt';
+                case 'Network Service': return 'fas fa-network-wired';
+                case 'Storage Service': return 'fas fa-database';
+                default: return 'fas fa-cube';
+            }
+        }
+
+        // Customer-facing tree HTML (no markup information)
+        function generateCustomerTreeHTML(hierarchy) {
+            let html = '';
+
+            Object.values(hierarchy).forEach(resourceGroup => {
+                const hasChildren = Object.keys(resourceGroup.resources).length > 0;
+
+                html += `
+                    <details class="level-1">
+                        <summary>
+                            <div class="resource-info">
+                                <div class="resource-details">
+                                    <div class="resource-name">
+                                        <i class="fas fa-folder me-2"></i>${resourceGroup.name}
+                                    </div>
+                                    <div class="resource-type">${resourceGroup.type} • ${Object.keys(resourceGroup.resources).length} resources • ${resourceGroup.itemCount} billing items</div>
+                                </div>
+                                <div class="cost-info">
+                                    <div class="cost-final">${selectedCurrencySymbol}${resourceGroup.totalCost.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </summary>
+                        ${hasChildren ? `<div class="resource-content">${generateCustomerResourcesHTML(resourceGroup.resources)}</div>` : ''}
+                    </details>
+                `;
+            });
+
+            return html;
+        }
+
+        function generateCustomerResourcesHTML(resources) {
+            let html = '';
+
+            Object.values(resources).forEach(resource => {
+                const hasChildren = Object.keys(resource.products).length > 0;
+                const resourceIcon = getResourceIcon(resource.type);
+
+                html += `
+                    <details class="level-2">
+                        <summary>
+                            <div class="resource-info">
+                                <div class="resource-details">
+                                    <div class="resource-name">
+                                        <i class="${resourceIcon} me-2"></i>${resource.name}
+                                    </div>
+                                    <div class="resource-type">${resource.type} • ${Object.keys(resource.products).length} products • ${resource.itemCount} billing items</div>
+                                    ${resource.parentResource ? `<div class="resource-type"><small>Parent: ${resource.parentResource}</small></div>` : ''}
+                                </div>
+                                <div class="cost-info">
+                                    <div class="cost-final">${selectedCurrencySymbol}${resource.totalCost.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </summary>
+                        ${hasChildren ? `<div class="resource-content">${generateCustomerProductsHTML(resource.products)}</div>` : ''}
+                    </details>
+                `;
+            });
+
+            return html;
+        }
+
+        function generateCustomerProductsHTML(products) {
+            let html = '';
+
+            Object.values(products).forEach(product => {
+                const hasChildren = product.items.length > 0;
+
+                html += `
+                    <details class="level-3">
+                        <summary>
+                            <div class="resource-info">
+                                <div class="resource-details">
+                                    <div class="resource-name">
+                                        <i class="fas fa-cube me-2"></i>${product.name}
+                                    </div>
+                                    <div class="resource-type">${product.meterName} • ${product.items.length} usage records</div>
+                                </div>
+                                <div class="cost-info">
+                                    <div class="cost-final">${selectedCurrencySymbol}${product.totalCost.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </summary>
+                        ${hasChildren ? `<div class="resource-content">${generateCustomerItemsHTML(product.items)}</div>` : ''}
+                    </details>
+                `;
+            });
+
+            return html;
+        }
+
+        function generateCustomerItemsHTML(items) {
+            let html = '';
+
+            items.forEach(item => {
+                html += `
+                    <div class="meter-item level-4">
+                        <div class="meter-details">
+                            <div class="meter-name">Usage: ${item.usageDate}</div>
+                            <div class="meter-info">Qty: ${item.quantity} @ ${selectedCurrencySymbol}${(parseFloat(item.unitPrice) || 0).toFixed(4)} | Region: ${item.meterRegion || 'N/A'}</div>
+                        </div>
+                        <div class="cost-info">
+                            <div class="cost-final">${selectedCurrencySymbol}${item.finalCost.toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            return html;
+        }
+
+        function generateReport() {
+            if (!hierarchicalData) {
+                showError('Please process the data first.');
+                return;
+            }
+
+            currentStep = 4;
+            updateStepIndicator();
+            showSection('generateSection');
+
+            // Show loading
+            document.getElementById('generateContent').innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5>Generating Hierarchical Report...</h5>
+                    <p class="text-muted">Processing ${processedData.length.toLocaleString()} records</p>
+                </div>
+            `;
+
+            // Simulate processing time
+            setTimeout(() => {
+                document.getElementById('generateContent').innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Report Generated Successfully!</strong>
+                        <p class="mb-0 mt-2">Your hierarchical Azure billing report is ready for preview and export.</p>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-center">
+                        <button type="button" class="btn btn-primary" onclick="previewReport()">
+                            <i class="fas fa-eye me-2"></i>Preview Report
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="exportReport()">
+                            <i class="fas fa-download me-2"></i>Export HTML
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="startOver()">
+                            <i class="fas fa-redo me-2"></i>Start Over
+                        </button>
+                    </div>
+                `;
+            }, 2000);
+        }
+
+        function previewReport() {
+            const reportHtml = generateReportHTML();
+            document.getElementById('reportContent').innerHTML = reportHtml;
+            document.getElementById('reportPreviewSection').classList.remove('hidden');
+            document.getElementById('reportPreviewSection').classList.add('fade-in');
+            document.getElementById('reportPreviewSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function generateReportHTML() {
+            const totalOriginal = Object.values(hierarchicalData).reduce((sum, rg) => sum + rg.totalOriginalCost, 0);
+            const totalMarkup = Object.values(hierarchicalData).reduce((sum, rg) => sum + rg.totalMarkupAmount, 0);
+            const totalFinal = Object.values(hierarchicalData).reduce((sum, rg) => sum + rg.totalCost, 0);
+            const totalRecords = processedData.length;
+            const currentDate = new Date().toLocaleDateString();
+
+            return `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px;">
+                    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #007bff; padding-bottom: 20px;">
+                        <h1 style="color: #333; margin-bottom: 10px;">
+                            <i class="fas fa-sitemap" style="margin-right: 10px;"></i>${reportTitle}
+                        </h1>
+                        ${companyName ? `<h2 style="color: #666; font-weight: 300;">${companyName}</h2>` : ''}
+                        <p style="color: #666; margin: 0;">Generated on ${currentDate}</p>
+                    </div>
+
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; padding: 20px; margin-bottom: 30px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                            <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; text-align: center;">
+                                <div style="font-size: 1.5rem; font-weight: 600;">${totalRecords.toLocaleString()}</div>
+                                <div style="font-size: 0.9rem; opacity: 0.9;">Total Billing Records</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; text-align: center;">
+                                <div style="font-size: 1.5rem; font-weight: 600;">${Object.keys(hierarchicalData).length}</div>
+                                <div style="font-size: 0.9rem; opacity: 0.9;">Resource Groups</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; text-align: center;">
+                                <div style="font-size: 1.5rem; font-weight: 600;">${selectedCurrencySymbol}${totalFinal.toFixed(2)}</div>
+                                <div style="font-size: 0.9rem; opacity: 0.9;">Total Cost</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 style="color: #333; margin-bottom: 15px;">
+                        <i class="fas fa-sitemap" style="margin-right: 10px;"></i>Hierarchical Resource Breakdown
+                    </h3>
+                    <p style="color: #666; margin-bottom: 20px;">Native HTML collapsible interface - click to expand/collapse resource dependencies</p>
+
+                    <div class="resource-hierarchy">
+                        ${generateCustomerTreeHTML(hierarchicalData)}
+                    </div>
+
+                    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #dee2e6; text-align: center; color: #666; font-size: 0.9rem;">
+                        <p>Report generated by Azure Billing Report Generator</p>
+                        <p>Currency: ${selectedCurrency} (${selectedCurrencySymbol})</p>
+                        <p>Professional Azure billing analysis and reporting</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function exportReport() {
+            if (!hierarchicalData) {
+                showError('No report data available to export.');
+                return;
+            }
+
+            const reportHtml = generateStandaloneReportHTML();
+            const blob = new Blob([reportHtml], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Azure_Billing_Hierarchical_Report_${new Date().toISOString().split('T')[0]}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function generateStandaloneReportHTML() {
+            const reportContent = generateReportHTML();
+
+            return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${reportTitle} - ${companyName || 'Azure Billing Report'}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .resource-hierarchy { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        details { border: 1px solid #dee2e6; border-radius: 6px; margin-bottom: 0.5rem; background: #f8f9fa; }
+        details[open] { background: #e3f2fd; border-color: #007bff; }
+        summary { padding: 0.75rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; transition: all 0.3s; }
+        summary:hover { background: rgba(0,123,255,0.1); }
+        .resource-info { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .resource-details { flex-grow: 1; }
+        .resource-name { font-weight: 600; color: #333; }
+        .resource-type { font-size: 0.85em; color: #666; margin-top: 0.25rem; }
+        .cost-info { text-align: right; min-width: 150px; margin-left: 1rem; }
+        .cost-original { font-size: 0.85em; color: #666; }
+        .cost-final { font-weight: 600; color: #28a745; font-size: 1.1em; }
+        .cost-markup { font-size: 0.8em; color: #dc3545; }
+        .resource-content { padding: 0 1rem 1rem 1rem; border-top: 1px solid #dee2e6; background: white; }
+        .meter-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; padding: 0.5rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between; align-items: center; }
+        .meter-details { flex-grow: 1; }
+        .meter-name { font-weight: 500; color: #495057; }
+        .meter-info { font-size: 0.8em; color: #6c757d; }
+        .level-1 { margin-left: 0; }
+        .level-2 { margin-left: 1rem; }
+        .level-3 { margin-left: 2rem; }
+        .level-4 { margin-left: 3rem; }
+    </style>
+</head>
+<body>
+    ${reportContent}
+</body>
+</html>`;
+        }
+
+        function closeReportPreview() {
+            document.getElementById('reportPreviewSection').classList.add('hidden');
+        }
+
+        function startOver() {
+            // Reset all data
+            uploadedData = null;
+            processedData = null;
+            hierarchicalData = null;
+            currentStep = 1;
+            globalMarkupPercent = 0;
+            selectedCurrency = 'GBP';
+            selectedCurrencySymbol = '£';
+            companyName = '';
+            reportTitle = 'Azure Billing Report';
+
+            // Reset form inputs
+            document.getElementById('fileInput').value = '';
+            document.getElementById('globalMarkup').value = '0';
+            document.getElementById('companyName').value = '';
+            document.getElementById('reportTitle').value = 'Azure Billing Report';
+
+            // Reset currency selection
+            document.querySelectorAll('.currency-option').forEach(option => {
+                option.classList.remove('selected');
+                option.querySelector('i').className = 'far fa-circle me-2';
+            });
+            document.querySelector('[data-currency="GBP"]').classList.add('selected');
+            document.querySelector('[data-currency="GBP"] i').className = 'fas fa-check-circle me-2';
+
+            // Hide all sections except upload
+            document.querySelectorAll('.card').forEach(card => card.classList.add('hidden'));
+            document.getElementById('uploadSection').classList.remove('hidden');
+            document.getElementById('reportPreviewSection').classList.add('hidden');
+
+            // Reset step indicator
+            updateStepIndicator();
+        }
+
+        function updateStepIndicator() {
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+
+            for (let i = 1; i <= 4; i++) {
+                const step = document.getElementById(`step${i}`);
+                if (i < currentStep) {
+                    step.classList.add('completed');
+                } else if (i === currentStep) {
+                    step.classList.add('active');
+                }
+            }
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.card').forEach(card => card.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+            document.getElementById(sectionId).classList.add('fade-in');
+        }
+
+        function showError(message) {
+            // Create or update error alert
+            let errorAlert = document.getElementById('errorAlert');
+            if (!errorAlert) {
+                errorAlert = document.createElement('div');
+                errorAlert.id = 'errorAlert';
+                errorAlert.className = 'alert alert-danger alert-dismissible fade show';
+                errorAlert.setAttribute('role', 'alert');
+                errorAlert.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span id="errorMessage"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                document.querySelector('.container').prepend(errorAlert);
+            }
+
+            document.getElementById('errorMessage').textContent = message;
+            errorAlert.classList.remove('hidden');
+            errorAlert.classList.add('fade-in');
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                errorAlert.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+
+    <!-- Footer -->
+    <footer class="mt-5 py-4 bg-light border-top">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <p class="mb-0 text-muted small">
+                        <i class="fas fa-code me-1"></i>
+                        Made by <strong>Rodrigo Quintian</strong> •
+                        Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank"
+                            class="text-decoration-none">Apache 2.0</a>
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <a href="https://github.com/cafasdon/azurebillreport" target="_blank"
+                        class="btn btn-outline-secondary btn-sm">
+                        <i class="fab fa-github me-1"></i>View on GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>
