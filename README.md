@@ -6,7 +6,7 @@
 
 A professional, web-based tool for generating hierarchical Azure billing reports with automatic billing type detection, markup calculations, and customer-safe output.
 
-Transform complex Azure billing Excel files into interactive, hierarchical reports that show resource relationships and dependencies. Supports both **Pay-as-you-go** and **Reserved Instances** billing with intelligent automatic detection. Perfect for MSPs, consultants, and IT professionals who need to present Azure costs to clients with professional markup handling.
+Transform complex Azure billing files (Excel and CSV) into interactive, hierarchical reports that show resource relationships and dependencies. Supports both **Pay-as-you-go** and **Reserved Instances** billing with intelligent automatic detection. Perfect for MSPs, consultants, and IT professionals who need to present Azure costs to clients with professional markup handling.
 
 ## 🚀 **Live Demo**
 
@@ -17,7 +17,7 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 ### **Option 1: Use Online (Recommended)**
 
 - Visit the [live demo](https://cafasdon.github.io/azurebillreport/)
-- Upload your Azure billing Excel file (Pay-as-you-go or Reserved Instances)
+- Upload your Azure billing file (Excel or CSV, Pay-as-you-go or Reserved Instances)
 - System automatically detects billing type
 - Generate professional reports instantly
 
@@ -68,7 +68,7 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
    - Or download `azure_billing_generator.html` and open in any browser
 
 2. **Upload Your Data**
-   - Drag and drop your Azure billing Excel file (.xls or .xlsx)
+   - Drag and drop your Azure billing file (.xls, .xlsx, or .csv)
    - System automatically detects Pay-as-you-go or Reserved Instances billing type
    - Download sample files to see expected formats for both billing types
 
@@ -118,10 +118,19 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 ### **Smart Data Processing**
 
 - **Billing Type Detection**: Automatically identifies Pay-as-you-go vs Reserved Instances
+- **Multi-Format Support**: Seamlessly handles Excel (.xls, .xlsx) and CSV (.csv) files
 - **Standardized Currency**: All reports use GBP (£) for consistent billing
 - **Date Formatting**: Fixes Excel date serial numbers
 - **Resource Type Detection**: Automatically categorizes VMs, disks, backup services
 - **Cost Aggregation**: Shows individual and rolled-up totals at each level
+
+### **File Format Support**
+
+- **Excel Files (.xls, .xlsx)**: Full support for Microsoft Excel formats using SheetJS
+- **CSV Files (.csv)**: Robust CSV parsing with Papa Parse library
+- **Automatic Detection**: System automatically determines file type and uses appropriate parser
+- **Header Handling**: Intelligent header detection and whitespace trimming for CSV files
+- **Error Handling**: Comprehensive validation and error reporting for both formats
 
 ## 🎯 Use Cases
 
@@ -148,8 +157,8 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 
 ## 📊 Supported Data
 
-- **Pay-as-you-go Billing**: Azure Usage Summary Excel files with resource groups and hierarchical relationships
-- **Reserved Instances Billing**: Azure Reserved Instances reports with customer and subscription data
+- **Pay-as-you-go Billing**: Azure Usage Summary files (Excel or CSV) with resource groups and hierarchical relationships
+- **Reserved Instances Billing**: Azure Reserved Instances reports (Excel or CSV) with customer and subscription data
 - **Automatic Detection**: System intelligently identifies billing type from file structure
 - **Large Datasets**: Supports thousands of records efficiently
 - **Standardized Currency**: All reports use GBP (£) for consistent billing
@@ -160,7 +169,7 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 - **Modern Web Browser**: Chrome, Firefox, Safari, Edge
 - **No Installation**: Runs entirely in the browser
 - **No Server Required**: Client-side processing only
-- **Excel Support**: Built-in Excel file reading capability
+- **File Support**: Built-in Excel (.xls, .xlsx) and CSV (.csv) file reading capability
 
 ## 📸 **Screenshots**
 
@@ -177,14 +186,14 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 ### Technology Stack
 
 - **Frontend**: HTML5, CSS3, Bootstrap 5, Font Awesome
-- **Processing**: Client-side JavaScript with SheetJS for Excel parsing
+- **Processing**: Client-side JavaScript with SheetJS for Excel parsing and Papa Parse for CSV parsing
 - **UI Components**: Native HTML `<details>`/`<summary>` elements for reliability
 - **Dependencies**: All included via CDN - no installation required
 
 ### Data Flow
 
 ```text
-Azure Excel File → Upload → Auto-Detect Type → Parse → Group Hierarchically → Apply Markup → Generate Report
+Azure File (Excel/CSV) → Upload → Auto-Detect Type → Parse → Group Hierarchically → Apply Markup → Generate Report
      ↓                ↓           ↓             ↓            ↓                ↓              ↓
 Raw Billing Data → Validation → Type Detection → Processing → Resource Tree → Pricing → Customer Report
                                 (PayG/RI)
@@ -213,7 +222,7 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## 🙏 **Acknowledgments**
 
 - Built with modern web standards for maximum compatibility
-- Uses SheetJS for reliable Excel file processing
+- Uses SheetJS for reliable Excel file processing and Papa Parse for CSV parsing
 - Bootstrap 5 for responsive, professional UI design
 - Font Awesome for consistent iconography
 
