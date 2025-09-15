@@ -4,9 +4,9 @@
 [![GitHub stars](https://img.shields.io/github/stars/cafasdon/azurebillreport.svg)](https://github.com/cafasdon/azurebillreport/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/cafasdon/azurebillreport.svg)](https://github.com/cafasdon/azurebillreport/issues)
 
-A professional, web-based tool for generating hierarchical Azure billing reports with markup calculations and customer-safe output.
+A professional, web-based tool for generating hierarchical Azure billing reports with automatic billing type detection, markup calculations, and customer-safe output.
 
-Transform complex Azure billing Excel files into interactive, hierarchical reports that show resource relationships and dependencies. Perfect for MSPs, consultants, and IT professionals who need to present Azure costs to clients with professional markup handling.
+Transform complex Azure billing Excel files into interactive, hierarchical reports that show resource relationships and dependencies. Supports both **Pay-as-you-go** and **Reserved Instances** billing with intelligent automatic detection. Perfect for MSPs, consultants, and IT professionals who need to present Azure costs to clients with professional markup handling.
 
 ## 🚀 **Live Demo**
 
@@ -17,7 +17,8 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 ### **Option 1: Use Online (Recommended)**
 
 - Visit the [live demo](https://cafasdon.github.io/azurebillreport/)
-- Upload your Azure billing Excel file
+- Upload your Azure billing Excel file (Pay-as-you-go or Reserved Instances)
+- System automatically detects billing type
 - Generate professional reports instantly
 
 ### **Option 2: Download for Offline Use**
@@ -25,13 +26,15 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 - Download `azure_billing_generator.html` from this repository
 - Open it in any modern web browser
 - Works completely offline with no dependencies
+- Supports both billing types with automatic detection
 
 ## ✨ **Key Features**
 
+- 🤖 **Automatic Billing Type Detection** - Intelligently detects Pay-as-you-go vs Reserved Instances billing
 - 🏗️ **Hierarchical Resource Grouping** - Shows VMs with their dependencies (disks, OS licensing, backup)
 - 🔒 **Markup Confidentiality** - Internal pricing tools with customer-safe report export
 - 📱 **Native HTML Interface** - Reliable expand/collapse using browser-native elements
-- 💰 **Multi-Currency Support** - GBP and USD with automatic detection
+- 💰 **Standardized Currency** - All reports use GBP (£) for consistent billing
 - 📊 **Professional Reports** - Clean, branded output suitable for client distribution
 - 🌐 **No Server Required** - Runs entirely in your browser with client-side processing
 
@@ -49,9 +52,9 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 ### **Sample Data**
 
 - **`example/`** - Sample data directory
-  - `AzureBilling_Sample_Structure.xlsx` - Mock Azure billing data with correct structure
-  - 5 sample records demonstrating hierarchical relationships
-  - Perfect for testing and understanding the expected data format
+  - `AzureBilling_Sample_Structure.xlsx` - Pay-as-you-go billing sample with hierarchical relationships
+  - `RI- AzureServicesBillingReport_INV00100392_mex99654758.xlsx` - Reserved Instances billing sample
+  - Perfect for testing automatic billing type detection and understanding expected data formats
 
 ### **Documentation**
 
@@ -66,12 +69,12 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 
 2. **Upload Your Data**
    - Drag and drop your Azure billing Excel file (.xls or .xlsx)
-   - Or click "Download Sample" in the interface to see the expected format
+   - System automatically detects Pay-as-you-go or Reserved Instances billing type
+   - Download sample files to see expected formats for both billing types
 
 3. **Configure Settings**
-   - Select currency (GBP/USD auto-detected)
    - Set markup percentage for sales pricing
-   - Add company branding
+   - Add company branding (all reports use standardized GBP currency)
 
 4. **Preview & Generate**
    - Review hierarchical breakdown with markup details (account manager view)
@@ -80,11 +83,24 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 
 ## ✨ Key Features
 
+### **Automatic Billing Type Detection**
+
+- **Intelligent Analysis**: Automatically detects Pay-as-you-go vs Reserved Instances billing
+- **Column-Based Detection**: Analyzes file structure to determine billing type
+- **Error Prevention**: Eliminates human error in billing type selection
+- **Instant Feedback**: Shows detected billing type immediately upon upload
+
+### **Dual Billing Type Support**
+
+- **Pay-as-you-go**: Resource Groups → Resources → Products/Meters → Usage Items
+- **Reserved Instances**: Customers → Subscriptions → Products/SKUs → Billing Items
+- **Unified Interface**: Same professional reports for both billing types
+
 ### **Hierarchical Resource Grouping**
 
-- **Resource Groups** → **Resources** → **Products/Meters** → **Usage Items**
 - **VM Dependencies**: Shows VMs with their disks, OS licensing, bandwidth
-- **Parent-Child Relationships**: Uses Azure `cm-resource-parent` tags
+- **Parent-Child Relationships**: Uses Azure `cm-resource-parent` tags for Pay-as-you-go
+- **Subscription Grouping**: Customer and subscription hierarchy for Reserved Instances
 - **Collapsible Interface**: Native HTML `<details>`/`<summary>` elements
 
 ### **Markup Confidentiality**
@@ -101,7 +117,8 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 
 ### **Smart Data Processing**
 
-- **Currency Auto-Detection**: Detects GBP/USD from Azure region data
+- **Billing Type Detection**: Automatically identifies Pay-as-you-go vs Reserved Instances
+- **Standardized Currency**: All reports use GBP (£) for consistent billing
 - **Date Formatting**: Fixes Excel date serial numbers
 - **Resource Type Detection**: Automatically categorizes VMs, disks, backup services
 - **Cost Aggregation**: Shows individual and rolled-up totals at each level
@@ -110,7 +127,8 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 
 ### **For Account Managers**
 
-- Upload Azure billing data
+- Upload Azure billing data (Pay-as-you-go or Reserved Instances)
+- System automatically detects billing type
 - Configure markup percentages for sales pricing
 - Review detailed cost breakdowns with markup calculations
 - Generate professional customer reports
@@ -118,7 +136,7 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 ### **For Customers**
 
 - Receive clean, professional billing reports
-- Explore hierarchical resource breakdown
+- Explore hierarchical resource breakdown (both billing types supported)
 - Understand Azure service costs and usage
 - No exposure to internal markup information
 
@@ -130,10 +148,12 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 
 ## 📊 Supported Data
 
-- **Azure Usage Summary** Excel files (.xls, .xlsx)
+- **Pay-as-you-go Billing**: Azure Usage Summary Excel files with resource groups and hierarchical relationships
+- **Reserved Instances Billing**: Azure Reserved Instances reports with customer and subscription data
+- **Automatic Detection**: System intelligently identifies billing type from file structure
 - **Large Datasets**: Supports thousands of records efficiently
-- **Multiple Currencies**: GBP and USD support
-- **All Azure Services**: VMs, storage, backup, networking, etc.
+- **Standardized Currency**: All reports use GBP (£) for consistent billing
+- **All Azure Services**: VMs, storage, backup, networking, reserved capacity, etc.
 
 ## 🛠️ Technical Requirements
 
@@ -164,9 +184,10 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 ### Data Flow
 
 ```text
-Azure Excel File → Upload → Parse → Group Hierarchically → Apply Markup → Generate Report
-     ↓                ↓        ↓            ↓                ↓              ↓
-Raw Billing Data → Validation → Processing → Resource Tree → Pricing → Customer Report
+Azure Excel File → Upload → Auto-Detect Type → Parse → Group Hierarchically → Apply Markup → Generate Report
+     ↓                ↓           ↓             ↓            ↓                ↓              ↓
+Raw Billing Data → Validation → Type Detection → Processing → Resource Tree → Pricing → Customer Report
+                                (PayG/RI)
 ```
 
 ## 🤝 **Contributing**
