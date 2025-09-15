@@ -588,8 +588,32 @@ GitHub: https://github.com/cafasdon/azurebillreport
                         const sheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[sheetName];
 
-                        // Convert to JSON
-                        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                        // Convert to JSON with options to handle missing headers
+                        const rawData = XLSX.utils.sheet_to_json(worksheet, {
+                            header: 1,  // Use first row as headers
+                            defval: '',  // Default value for empty cells
+                            blankrows: false  // Skip blank rows
+                        });
+
+                        let jsonData;
+
+                        // Convert array format to object format manually to ensure all columns are preserved
+                        if (rawData.length > 0) {
+                            const headers = rawData[0];
+                            const rows = rawData.slice(1);
+
+                            jsonData = rows.map(row => {
+                                const obj = {};
+                                headers.forEach((header, index) => {
+                                    // Handle empty or undefined headers
+                                    const cleanHeader = header && header.toString().trim() ? header.toString().trim() : `Column_${index}`;
+                                    obj[cleanHeader] = row[index] || '';
+                                });
+                                return obj;
+                            });
+                        } else {
+                            jsonData = rawData;
+                        }
 
                         document.querySelector('.progress-bar').style.width = '100%';
 
@@ -612,19 +636,32 @@ GitHub: https://github.com/cafasdon/azurebillreport
             const firstRow = data[0];
             const columns = Object.keys(firstRow);
 
+            // Normalize column names for comparison (remove extra spaces, handle case variations)
+            const normalizedColumns = columns.map(col => col.trim().toLowerCase());
+
+            // Helper function for flexible column matching
+            function hasColumn(targetCol) {
+                const normalizedTarget = targetCol.toLowerCase();
+                return normalizedColumns.some(col =>
+                    col === normalizedTarget ||
+                    col.includes(normalizedTarget) ||
+                    normalizedTarget.includes(col)
+                );
+            }
+
             // Pay-as-you-go is characterized by detailed resource-level billing
             // Key indicators: Resource Group + Meter Name + Usage Date (resource-level granularity)
             const paygStrongIndicators = ['Resource Group', 'Meter Name', 'Usage Date'];
-            const hasStrongPaygIndicators = paygStrongIndicators.every(col => columns.includes(col));
+            const hasStrongPaygIndicators = paygStrongIndicators.every(col => hasColumn(col));
 
             // Additional PayG supporting columns
             const paygSupportingColumns = ['Total Cost', 'Tags', 'Meter Id', 'Product Name', 'Quantity'];
-            const hasPaygSupporting = paygSupportingColumns.some(col => columns.includes(col));
+            const hasPaygSupporting = paygSupportingColumns.some(col => hasColumn(col));
 
             // Reserved Instances is characterized by subscription-level billing without resource details
             // Key indicators: Must have RI-specific columns AND lack detailed resource metering
             const riSpecificColumns = ['Sub Total', 'Billing Period', 'Sku Name'];
-            const hasRiSpecific = riSpecificColumns.some(col => columns.includes(col));
+            const hasRiSpecific = riSpecificColumns.some(col => hasColumn(col));
 
             // Customer/Subscription columns can appear in both types, so they're not decisive
 
