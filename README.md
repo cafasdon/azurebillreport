@@ -53,7 +53,7 @@ Transform complex Azure billing Excel files into interactive, hierarchical repor
 
 - **`example/`** - Sample data directory
   - `AzureBilling_Sample_Structure.xlsx` - Pay-as-you-go billing sample with hierarchical relationships
-  - `RI- AzureServicesBillingReport_INV00100392_mex99654758.xlsx` - Reserved Instances billing sample
+  - `RI_Sample_MockData.xlsx` - Reserved Instances billing sample with completely fictitious data
   - Perfect for testing automatic billing type detection and understanding expected data formats
 
 ### **Documentation**
