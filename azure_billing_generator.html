@@ -541,8 +541,14 @@ GitHub: https://github.com/cafasdon/azurebillreport
 
                         // Parse CSV file
                         const csvText = e.target.result;
+
+                        // Auto-detect delimiter (comma or semicolon)
+                        const firstLine = csvText.split('\n')[0];
+                        const delimiter = firstLine.includes(';') ? ';' : ',';
+
                         const parseResult = Papa.parse(csvText, {
                             header: true,
+                            delimiter: delimiter,
                             skipEmptyLines: true,
                             transformHeader: function (header) {
                                 return header.trim(); // Remove any whitespace from headers
@@ -606,23 +612,31 @@ GitHub: https://github.com/cafasdon/azurebillreport
             const firstRow = data[0];
             const columns = Object.keys(firstRow);
 
-            // Check for Reserved Instances specific columns (more distinctive)
-            const riColumns = ['Customer Name', 'Subscription Id', 'Sub Total', 'Billing Period', 'Sku Name'];
-            const hasRiColumns = riColumns.some(col => columns.includes(col));
+            // Pay-as-you-go is characterized by detailed resource-level billing
+            // Key indicators: Resource Group + Meter Name + Usage Date (resource-level granularity)
+            const paygStrongIndicators = ['Resource Group', 'Meter Name', 'Usage Date'];
+            const hasStrongPaygIndicators = paygStrongIndicators.every(col => columns.includes(col));
 
-            // Check for Pay-as-you-go specific columns
-            const paygColumns = ['Resource Group', 'Total Cost', 'Usage Date', 'Meter Name', 'Tags'];
-            const hasPaygColumns = paygColumns.some(col => columns.includes(col));
+            // Additional PayG supporting columns
+            const paygSupportingColumns = ['Total Cost', 'Tags', 'Meter Id', 'Product Name', 'Quantity'];
+            const hasPaygSupporting = paygSupportingColumns.some(col => columns.includes(col));
 
-            if (hasRiColumns && !hasPaygColumns) {
-                return 'ri';
-            } else if (hasPaygColumns && !hasRiColumns) {
-                return 'payg';
-            } else if (hasRiColumns) {
-                // If both have some columns, prioritize RI detection
-                return 'ri';
-            } else if (hasPaygColumns) {
-                return 'payg';
+            // Reserved Instances is characterized by subscription-level billing without resource details
+            // Key indicators: Must have RI-specific columns AND lack detailed resource metering
+            const riSpecificColumns = ['Sub Total', 'Billing Period', 'Sku Name'];
+            const hasRiSpecific = riSpecificColumns.some(col => columns.includes(col));
+
+            // Customer/Subscription columns can appear in both types, so they're not decisive
+
+            // Decision logic: Prioritize resource-level granularity for PayG detection
+            if (hasStrongPaygIndicators && hasPaygSupporting) {
+                return 'payg';  // Strong PayG indicators take precedence
+            } else if (hasRiSpecific && !hasStrongPaygIndicators) {
+                return 'ri';    // RI-specific columns without resource-level detail
+            } else if (hasStrongPaygIndicators) {
+                return 'payg';  // Resource-level detail indicates PayG
+            } else if (hasRiSpecific) {
+                return 'ri';    // RI-specific columns
             }
 
             return null; // Cannot determine
