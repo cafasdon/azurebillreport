@@ -8,41 +8,23 @@ A professional, web-based tool for generating hierarchical Azure billing reports
 
 Transform complex Azure billing Excel files into interactive, hierarchical reports that show resource relationships and dependencies. Perfect for MSPs, consultants, and IT professionals who need to present Azure costs to clients with professional markup handling.
 
-## 📥 **Quick Download**
-
-**[🚀 Download Latest Release](https://github.com/cafasdon/azurebillreport/releases/latest)** - Choose from Web-Only, Windows Installer, or Complete Source packages.
-
-## 🚀 **Quick Start Options**
-
-### **Option 1: Web Browser (Recommended)**
+## 🚀 **Live Demo**
 
 [**Try it now!**](https://cafasdon.github.io/azurebillreport/) - No installation required, works directly in your browser.
 
-### **Option 2: Download Packages**
+## 📥 **Quick Start**
 
-Choose the package that best fits your needs:
+### **Option 1: Use Online (Recommended)**
 
-#### 📦 **Download Options**
+- Visit the [live demo](https://cafasdon.github.io/azurebillreport/)
+- Upload your Azure billing Excel file
+- Generate professional reports instantly
 
-| Package | Size | Use Case | Download |
-|---------|------|----------|----------|
-| **Web-Only** | ~500 KB | Quick start, no installation | [📥 Download](https://github.com/cafasdon/azurebillreport/releases/latest) |
-| **Windows Installer** | ~1 MB | Professional Windows installation | [📥 Download](https://github.com/cafasdon/azurebillreport/releases/latest) |
-| **Complete Source** | ~2 MB | Development, customization | [📥 Download](https://github.com/cafasdon/azurebillreport/releases/latest) |
+### **Option 2: Download for Offline Use**
 
-> **📋 Note**: All packages are available on the [GitHub Releases page](https://github.com/cafasdon/azurebillreport/releases/latest). Choose the package that best fits your needs.
-
-#### 🌐 **Web-Only Package**
-
-- Extract and open `azure_billing_generator.html` in any browser
-- Includes sample data for immediate testing
-- No installation required
-
-#### 💻 **Windows Installer Package**
-
-- Extract and run `INSTALL.bat` as Administrator
-- Creates desktop shortcut and Start Menu integration
-- Professional Windows installation experience
+- Download `azure_billing_generator.html` from this repository
+- Open it in any modern web browser
+- Works completely offline with no dependencies
 
 ## ✨ **Key Features**
 
@@ -76,15 +58,15 @@ Choose the package that best fits your needs:
 - **`MARKUP_VISIBILITY_GUIDE.md`** - Security guide for markup confidentiality
 - **`README.md`** - This file
 
-## 🚀 Quick Start
+## 📋 **How to Use**
 
-1. **Open the Application**
-   - Download `azure_billing_generator.html` from this repository
-   - Open it in any modern web browser (Chrome, Firefox, Safari, Edge)
+1. **Access the Application**
+   - Visit [https://cafasdon.github.io/azurebillreport/](https://cafasdon.github.io/azurebillreport/)
+   - Or download `azure_billing_generator.html` and open in any browser
 
 2. **Upload Your Data**
    - Drag and drop your Azure billing Excel file (.xls or .xlsx)
-   - Or click "Download Sample" in the interface to get the example file structure
+   - Or click "Download Sample" in the interface to see the expected format
 
 3. **Configure Settings**
    - Select currency (GBP/USD auto-detected)
@@ -95,38 +77,6 @@ Choose the package that best fits your needs:
    - Review hierarchical breakdown with markup details (account manager view)
    - Generate customer-safe report (markup information automatically hidden)
    - Export professional HTML report for client distribution
-
-## 💻 **Windows Installation Package**
-
-For Windows users who prefer a traditional desktop application experience:
-
-### **Installation Features**
-
-- **Desktop Shortcut**: Quick access from desktop
-- **Start Menu Integration**: Professional Windows integration
-- **Sample Data Included**: Example files for testing
-- **Easy Uninstallation**: Standard Windows Add/Remove Programs
-- **No Dependencies**: Works with any modern web browser
-
-### **Installation Steps**
-
-1. **Download**: Clone or download this repository
-2. **Install**: Run `INSTALL.bat` as Administrator
-3. **Launch**: Click desktop shortcut or Start Menu item
-4. **Uninstall**: Use `UNINSTALL.bat` or Windows Add/Remove Programs
-
-### **What Gets Installed**
-
-- Application files in `C:\Program Files\Azure Billing Report Generator\`
-- Desktop shortcut for easy access
-- Start Menu folder with shortcuts to:
-  - Main application
-  - Sample data files
-  - Documentation
-  - GitHub repository
-  - Uninstaller
-
-See `INSTALLER_README.md` for detailed installation documentation.
 
 ## ✨ Key Features
 
