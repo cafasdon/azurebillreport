@@ -16,6 +16,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <style>
         .hidden {
@@ -276,18 +277,19 @@ GitHub: https://github.com/cafasdon/azurebillreport
 
                 <div class="upload-zone" id="uploadZone">
                     <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
-                    <h4>Drop your Excel file here</h4>
+                    <h4>Drop your billing file here</h4>
                     <p>or click to browse for files</p>
-                    <p class="text-muted">Supported formats: .xls, .xlsx</p>
+                    <p class="text-muted">Supported formats: .xls, .xlsx, .csv</p>
                 </div>
-                <input type="file" id="fileInput" accept=".xls,.xlsx" class="hidden">
+                <input type="file" id="fileInput" accept=".xls,.xlsx,.csv" class="hidden">
 
                 <div class="alert alert-info mt-3" id="sampleDataInfo">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <h6 class="mb-1"><i class="fas fa-info-circle me-2"></i>Need help with file structure?</h6>
-                            <p class="mb-0 small">Download our sample Excel files to see the expected Azure billing data
-                                formats. The system will automatically detect your billing type.</p>
+                            <p class="mb-0 small">Download our sample files to see the expected Azure billing data
+                                formats. The system will automatically detect your billing type. Supports Excel (.xlsx,
+                                .xls) and CSV (.csv) files.</p>
                         </div>
                         <div class="btn-group">
                             <a href="./example/AzureBilling_Sample_Structure.xlsx"
@@ -513,11 +515,13 @@ GitHub: https://github.com/cafasdon/azurebillreport
             // Validate file type
             const validTypes = [
                 'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'text/csv',
+                'application/csv'
             ];
 
-            if (!validTypes.includes(file.type) && !file.name.match(/\.(xls|xlsx)$/i)) {
-                showError('Please select a valid Excel file (.xls or .xlsx)');
+            if (!validTypes.includes(file.type) && !file.name.match(/\.(xls|xlsx|csv)$/i)) {
+                showError('Please select a valid billing file (.xls, .xlsx, or .csv)');
                 return;
             }
 
@@ -525,36 +529,75 @@ GitHub: https://github.com/cafasdon/azurebillreport
             document.getElementById('uploadProgress').classList.remove('hidden');
             document.querySelector('.progress-bar').style.width = '20%';
 
-            // Read the file
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                try {
-                    document.querySelector('.progress-bar').style.width = '60%';
+            // Determine file type and read accordingly
+            const fileExtension = file.name.split('.').pop().toLowerCase();
 
-                    // Parse Excel file
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+            if (fileExtension === 'csv') {
+                // Handle CSV files
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        document.querySelector('.progress-bar').style.width = '60%';
 
-                    // Get first sheet
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
+                        // Parse CSV file
+                        const csvText = e.target.result;
+                        const parseResult = Papa.parse(csvText, {
+                            header: true,
+                            skipEmptyLines: true,
+                            transformHeader: function (header) {
+                                return header.trim(); // Remove any whitespace from headers
+                            }
+                        });
 
-                    // Convert to JSON
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                        if (parseResult.errors.length > 0) {
+                            console.warn('CSV parsing warnings:', parseResult.errors);
+                        }
 
-                    document.querySelector('.progress-bar').style.width = '100%';
+                        const jsonData = parseResult.data;
+                        document.querySelector('.progress-bar').style.width = '100%';
 
-                    // Process the data
-                    processUploadedData(jsonData, file);
+                        // Process the data
+                        processUploadedData(jsonData, file);
 
-                } catch (error) {
-                    console.error('Error processing file:', error);
-                    showError('Error processing file. Please ensure it\'s a valid Excel file with billing data.');
-                    document.getElementById('uploadProgress').classList.add('hidden');
-                }
-            };
+                    } catch (error) {
+                        console.error('Error processing CSV file:', error);
+                        showError('Error processing CSV file. Please ensure it\'s a valid CSV file with billing data.');
+                        document.getElementById('uploadProgress').classList.add('hidden');
+                    }
+                };
+                reader.readAsText(file);
 
-            reader.readAsArrayBuffer(file);
+            } else {
+                // Handle Excel files (.xls, .xlsx)
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        document.querySelector('.progress-bar').style.width = '60%';
+
+                        // Parse Excel file
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+
+                        // Get first sheet
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+
+                        // Convert to JSON
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                        document.querySelector('.progress-bar').style.width = '100%';
+
+                        // Process the data
+                        processUploadedData(jsonData, file);
+
+                    } catch (error) {
+                        console.error('Error processing Excel file:', error);
+                        showError('Error processing Excel file. Please ensure it\'s a valid Excel file with billing data.');
+                        document.getElementById('uploadProgress').classList.add('hidden');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
         }
 
         function detectBillingType(data) {
