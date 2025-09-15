@@ -17,6 +17,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <style>
         .hidden {
@@ -1401,12 +1402,15 @@ GitHub: https://github.com/cafasdon/azurebillreport
                         <p class="mb-0 mt-2">Your hierarchical Azure billing report is ready for preview and export.</p>
                     </div>
 
-                    <div class="d-flex gap-2 justify-content-center">
+                    <div class="d-flex gap-2 justify-content-center flex-wrap">
                         <button type="button" class="btn btn-primary" onclick="previewReport()">
                             <i class="fas fa-eye me-2"></i>Preview Report
                         </button>
                         <button type="button" class="btn btn-success" onclick="exportReport()">
                             <i class="fas fa-download me-2"></i>Export HTML
+                        </button>
+                        <button type="button" class="btn btn-info" onclick="showIndividualCustomerReports()">
+                            <i class="fas fa-users me-2"></i>Individual Customer Reports
                         </button>
                         <button type="button" class="btn btn-outline-secondary" onclick="startOver()">
                             <i class="fas fa-redo me-2"></i>Start Over
@@ -1616,7 +1620,319 @@ GitHub: https://github.com/cafasdon/azurebillreport
                 errorAlert.style.display = 'none';
             }, 5000);
         }
+
+        // Individual Customer Reports Functions
+        function showIndividualCustomerReports() {
+            if (!hierarchicalData) {
+                showError('Please process the data first.');
+                return;
+            }
+
+            // Get list of customers
+            const customers = Object.keys(hierarchicalData);
+
+            if (customers.length === 0) {
+                showError('No customers found in the data.');
+                return;
+            }
+
+            // Show the individual reports section
+            document.getElementById('individualReportsSection').classList.remove('hidden');
+            document.getElementById('individualReportsSection').classList.add('fade-in');
+
+            // Generate customer selection interface
+            let html = `
+                <div class="mb-4">
+                    <h6><i class="fas fa-info-circle me-2"></i>Select Customers for Individual Reports</h6>
+                    <p class="text-muted">Choose which customers you want to generate individual reports for. Each customer will get their own HTML report file.</p>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">Available Customers (${customers.length})</h6>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="selectAllCustomers()">
+                                        <i class="fas fa-check-square me-1"></i>Select All
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllCustomers()">
+                                        <i class="fas fa-square me-1"></i>Deselect All
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+            `;
+
+            customers.forEach((customerName, index) => {
+                const customer = hierarchicalData[customerName];
+                const resourceCount = Object.keys(customer.resources).length;
+                const itemCount = customer.itemCount;
+
+                html += `
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input customer-checkbox" type="checkbox" value="${customerName}" id="customer_${index}" checked>
+                            <label class="form-check-label" for="customer_${index}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>${customerName}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            ${resourceCount} ${selectedBillingType === 'payg' ? 'resources' : 'products'} • ${itemCount} items • ${selectedCurrencySymbol}${customer.totalCost.toFixed(2)}
+                                        </small>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-download me-2"></i>Generate Reports</h6>
+                            </div>
+                            <div class="card-body text-center">
+                                <p class="text-muted small mb-3">Selected customers will be exported as individual HTML reports in a ZIP file.</p>
+                                <button type="button" class="btn btn-success" onclick="generateIndividualReports()">
+                                    <i class="fas fa-file-archive me-2"></i>Download ZIP
+                                </button>
+                                <div class="mt-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-shield-alt me-1"></i>
+                                        Customer reports hide markup information
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('individualReportsContent').innerHTML = html;
+            document.getElementById('individualReportsSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function selectAllCustomers() {
+            document.querySelectorAll('.customer-checkbox').forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        }
+
+        function deselectAllCustomers() {
+            document.querySelectorAll('.customer-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+
+        function closeIndividualReports() {
+            document.getElementById('individualReportsSection').classList.add('hidden');
+        }
+
+        async function generateIndividualReports() {
+            // Get selected customers
+            const selectedCustomers = [];
+            document.querySelectorAll('.customer-checkbox:checked').forEach(checkbox => {
+                selectedCustomers.push(checkbox.value);
+            });
+
+            if (selectedCustomers.length === 0) {
+                showError('Please select at least one customer.');
+                return;
+            }
+
+            // Show loading state
+            const generateBtn = document.querySelector('button[onclick="generateIndividualReports()"]');
+            const originalText = generateBtn.innerHTML;
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+            generateBtn.disabled = true;
+
+            try {
+                // Create ZIP file
+                const zip = new JSZip();
+
+                // Generate report for each selected customer
+                for (const customerName of selectedCustomers) {
+                    const customerHierarchy = {
+                        [customerName]: hierarchicalData[customerName]
+                    };
+
+                    const customerReportHTML = generateCustomerReportHTML(customerHierarchy, customerName);
+                    const fileName = `${customerName.replace(/[^a-zA-Z0-9]/g, '_')}_Azure_Billing_Report.html`;
+                    zip.file(fileName, customerReportHTML);
+                }
+
+                // Generate ZIP and download
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Azure_Individual_Customer_Reports_${new Date().toISOString().split('T')[0]}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Show success message
+                showSuccess(`Successfully generated ${selectedCustomers.length} individual customer reports!`);
+
+            } catch (error) {
+                console.error('Error generating individual reports:', error);
+                showError('Failed to generate individual reports. Please try again.');
+            } finally {
+                // Restore button
+                generateBtn.innerHTML = originalText;
+                generateBtn.disabled = false;
+            }
+        }
+
+        function generateCustomerReportHTML(customerHierarchy, customerName) {
+            const customer = customerHierarchy[customerName];
+            const totalRecords = customer.itemCount;
+            const totalCost = customer.totalCost;
+            const currentDate = new Date().toLocaleDateString();
+            const resourceCount = Object.keys(customer.resources).length;
+
+            return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${customerName} - Azure Billing Report</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .resource-hierarchy { margin-top: 20px; }
+        .level-1, .level-2, .level-3 { margin-bottom: 10px; }
+        .level-1 > summary { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
+        .level-2 > summary { background: #ffffff; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef; margin-left: 20px; }
+        .level-3 > summary { background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #f1f3f4; margin-left: 40px; }
+        .resource-info { display: flex; justify-content: between; align-items: center; }
+        .resource-details { flex: 1; }
+        .resource-name { font-weight: 600; color: #333; }
+        .resource-type { font-size: 0.9em; color: #666; margin-top: 4px; }
+        .cost-info { text-align: right; }
+        .cost-final { font-weight: 600; color: #28a745; font-size: 1.1em; }
+        .resource-content { margin-top: 10px; }
+        .item-info { display: flex; justify-content: between; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 4px; margin: 5px 0; margin-left: 60px; }
+        .item-details { flex: 1; }
+        .item-name { font-weight: 500; color: #333; }
+        .item-description { font-size: 0.85em; color: #666; margin-top: 2px; }
+        .item-cost { text-align: right; font-weight: 600; color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container my-5">
+        <div class="text-center mb-5 border-bottom pb-4">
+            <h1 class="text-primary mb-3">
+                <i class="fas fa-sitemap me-3"></i>${reportTitle}
+            </h1>
+            ${companyName ? `<h2 class="text-secondary fw-light">${companyName}</h2>` : ''}
+            <h3 class="text-dark">${customerName}</h3>
+            <p class="text-muted">Generated on ${currentDate}</p>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="text-primary">${totalRecords}</h4>
+                        <small class="text-muted">Total Billing Records</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="text-info">${resourceCount}</h4>
+                        <small class="text-muted">${selectedBillingType === 'payg' ? 'Resource Groups' : 'Products'}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="text-success">${selectedCurrencySymbol}${totalCost.toFixed(2)}</h4>
+                        <small class="text-muted">Total Cost</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="mb-3">
+            <i class="fas fa-sitemap me-2"></i>Hierarchical Resource Breakdown
+        </h3>
+        <p class="text-muted mb-4">Native HTML collapsible interface - click to expand/collapse resource dependencies</p>
+
+        <div class="resource-hierarchy">
+            ${generateCustomerTreeHTML(customerHierarchy)}
+        </div>
+
+        <div class="mt-5 pt-4 border-top text-center text-muted">
+            <p class="mb-1">Report generated by Azure Billing Report Generator</p>
+            <p class="mb-1">Currency: ${selectedCurrencySymbol === '£' ? 'GBP (£)' : selectedCurrencySymbol}</p>
+            <p class="mb-0">Professional Azure billing analysis and reporting</p>
+        </div>
+    </div>
+</body>
+</html>`;
+        }
+
+        function showSuccess(message) {
+            const successAlert = document.getElementById('successAlert');
+            if (successAlert) {
+                successAlert.querySelector('.alert-message').textContent = message;
+                successAlert.classList.remove('hidden');
+                successAlert.classList.add('fade-in');
+
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    successAlert.style.display = 'none';
+                }, 5000);
+            } else {
+                // Create success alert if it doesn't exist
+                const alertHtml = `
+                    <div id="successAlert" class="alert alert-success alert-dismissible fade-in" role="alert">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span class="alert-message">${message}</span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                document.querySelector('.container').insertAdjacentHTML('afterbegin', alertHtml);
+
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    const alert = document.getElementById('successAlert');
+                    if (alert) alert.style.display = 'none';
+                }, 5000);
+            }
+        }
     </script>
+
+    <!-- Individual Customer Reports Section -->
+    <div class="card hidden mt-4" id="individualReportsSection">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Individual Customer Reports</h5>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="closeIndividualReports()">
+                <i class="fas fa-times me-2"></i>Close
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="individualReportsContent">
+                <!-- Individual reports content will be populated here -->
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="mt-5 py-4 bg-light border-top">
