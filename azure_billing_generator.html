@@ -935,7 +935,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
         function createRiHierarchy(data) {
             const hierarchy = {};
 
-            // Group by Customer for Reserved Instances
+            // Group by Customer → Product for Reserved Instances
             data.forEach(row => {
                 const customerName = row['Customer Name'] || 'Unknown Customer';
                 const subscriptionId = row['Subscription Id'] || 'Unknown Subscription';
@@ -956,28 +956,10 @@ GitHub: https://github.com/cafasdon/azurebillreport
                     };
                 }
 
-                // Initialize subscription within customer
-                const subscriptionKey = `${subscriptionId}_${billingPeriod}`;
-                if (!hierarchy[customerName].resources[subscriptionKey]) {
-                    hierarchy[customerName].resources[subscriptionKey] = {
-                        name: `Subscription: ${subscriptionId}`,
-                        type: 'Subscription',
-                        products: {},
-                        totalCost: 0,
-                        totalOriginalCost: 0,
-                        totalMarkupAmount: 0,
-                        itemCount: 0,
-                        billingPeriod: billingPeriod,
-                        subscriptionId: subscriptionId,
-                        startDate: row['Subscription StartDate'],
-                        endDate: row['Subscription EndDate']
-                    };
-                }
-
-                // Initialize product within subscription
-                const productKey = `${productName}_${skuName}`;
-                if (!hierarchy[customerName].resources[subscriptionKey].products[productKey]) {
-                    hierarchy[customerName].resources[subscriptionKey].products[productKey] = {
+                // Initialize product within customer (group by product name)
+                const productKey = productName;
+                if (!hierarchy[customerName].resources[productKey]) {
+                    hierarchy[customerName].resources[productKey] = {
                         name: productName,
                         meterName: skuName,
                         type: 'Reserved Instance',
@@ -990,12 +972,12 @@ GitHub: https://github.com/cafasdon/azurebillreport
                 }
 
                 // Calculate costs with current markup
-                const originalCost = row['Original Cost'];
+                const originalCost = row['Sub Total'] || row['Original Cost'] || 0;
                 const markupAmount = originalCost * (globalMarkupPercent / 100);
                 const finalCost = originalCost + markupAmount;
 
-                // Add the individual item
-                const product = hierarchy[customerName].resources[subscriptionKey].products[productKey];
+                // Add the individual reservation item with subscription context
+                const product = hierarchy[customerName].resources[productKey];
                 product.items.push({
                     usageDate: billingPeriod,
                     quantity: row['Quantity'],
@@ -1004,24 +986,22 @@ GitHub: https://github.com/cafasdon/azurebillreport
                     markupAmount: markupAmount,
                     finalCost: finalCost,
                     meterRegion: 'Reserved Instance',
+                    subscriptionId: subscriptionId,
+                    subscriptionStartDate: row['Subscription StartDate'],
+                    subscriptionEndDate: row['Subscription EndDate'],
                     customerId: row['CustomerId'],
                     publisherName: row['Publisher Name'],
-                    productCategory: row['Product Category']
+                    productCategory: row['Product Category'],
+                    skuName: skuName
                 });
 
-                // Update totals at all levels
-
+                // Update totals at product level
                 product.totalOriginalCost += originalCost;
                 product.totalMarkupAmount += markupAmount;
                 product.totalCost += finalCost;
                 product.itemCount += 1;
 
-                const subscription = hierarchy[customerName].resources[subscriptionKey];
-                subscription.totalOriginalCost += originalCost;
-                subscription.totalMarkupAmount += markupAmount;
-                subscription.totalCost += finalCost;
-                subscription.itemCount += 1;
-
+                // Update totals at customer level
                 hierarchy[customerName].totalOriginalCost += originalCost;
                 hierarchy[customerName].totalMarkupAmount += markupAmount;
                 hierarchy[customerName].totalCost += finalCost;
@@ -1103,7 +1083,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
             Object.values(hierarchy).forEach(topLevel => {
                 const hasChildren = Object.keys(topLevel.resources).length > 0;
                 const topLevelIcon = selectedBillingType === 'payg' ? 'fas fa-folder' : 'fas fa-user';
-                const childrenLabel = selectedBillingType === 'payg' ? 'resources' : 'subscriptions';
+                const childrenLabel = selectedBillingType === 'payg' ? 'resources' : 'products';
 
                 html += `
                     <details class="level-1">
@@ -1134,20 +1114,22 @@ GitHub: https://github.com/cafasdon/azurebillreport
             let html = '';
 
             Object.values(resources).forEach(resource => {
-                const hasChildren = Object.keys(resource.products).length > 0;
+                // For new RI structure, resources ARE products (no intermediate subscription level)
+                // For PayG structure, resources have products
+                const hasChildren = resource.products ? Object.keys(resource.products).length > 0 : resource.items && resource.items.length > 0;
                 const resourceIcon = getResourceIcon(resource.type);
 
                 // Different display for RI vs Pay-as-you-go
                 let resourceDetails = '';
                 if (selectedBillingType === 'ri') {
+                    // New RI structure: resource IS the product
                     resourceDetails = `
-                        <div class="resource-type">${resource.type} • ${Object.keys(resource.products).length} products • ${resource.itemCount} billing items</div>
-                        ${resource.billingPeriod ? `<div class="resource-type"><small>Billing Period: ${resource.billingPeriod}</small></div>` : ''}
-                        ${resource.startDate && resource.endDate ? `<div class="resource-type"><small>Period: ${resource.startDate} to ${resource.endDate}</small></div>` : ''}
+                        <div class="resource-type">${resource.type}, ${resource.meterName || 'Unknown SKU'} • ${resource.itemCount} reservations</div>
                     `;
                 } else {
+                    // PayG structure: resource has products
                     resourceDetails = `
-                        <div class="resource-type">${resource.type} • ${Object.keys(resource.products).length} products • ${resource.itemCount} billing items</div>
+                        <div class="resource-type">${resource.type} • ${Object.keys(resource.products || {}).length} products • ${resource.itemCount} billing items</div>
                         ${resource.parentResource ? `<div class="resource-type"><small>Parent: ${resource.parentResource}</small></div>` : ''}
                     `;
                 }
@@ -1169,7 +1151,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
                                 </div>
                             </div>
                         </summary>
-                        ${hasChildren ? `<div class="resource-content">${generateProductsHTML(resource.products)}</div>` : ''}
+                        ${hasChildren ? `<div class="resource-content">${selectedBillingType === 'ri' ? generateItemsHTML(resource.items) : generateProductsHTML(resource.products)}</div>` : ''}
                     </details>
                 `;
             });
@@ -1211,12 +1193,21 @@ GitHub: https://github.com/cafasdon/azurebillreport
         function generateItemsHTML(items) {
             let html = '';
 
-            items.forEach(item => {
+            items.forEach((item, index) => {
+                // For RI items, show subscription context; for PayG items, show usage date
+                const itemTitle = item.subscriptionId
+                    ? `Reservation ${index + 1}`
+                    : `Usage: ${item.usageDate}`;
+
+                const itemInfo = item.subscriptionId
+                    ? `Qty: ${item.quantity} @ ${selectedCurrencySymbol}${(parseFloat(item.unitPrice) || 0).toFixed(4)} | Subscription: ${item.subscriptionId.substring(0, 8)}...`
+                    : `Qty: ${item.quantity} @ ${selectedCurrencySymbol}${(parseFloat(item.unitPrice) || 0).toFixed(4)} | Region: ${item.meterRegion || 'N/A'}`;
+
                 html += `
                     <div class="meter-item level-4">
                         <div class="meter-details">
-                            <div class="meter-name">Usage: ${item.usageDate}</div>
-                            <div class="meter-info">Qty: ${item.quantity} @ ${selectedCurrencySymbol}${(parseFloat(item.unitPrice) || 0).toFixed(4)} | Region: ${item.meterRegion || 'N/A'}</div>
+                            <div class="meter-name">${itemTitle}</div>
+                            <div class="meter-info">${itemInfo}</div>
                         </div>
                         <div class="cost-info">
                             <div class="cost-original">Original: ${selectedCurrencySymbol}${item.originalCost.toFixed(2)}</div>
@@ -1250,7 +1241,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
             Object.values(hierarchy).forEach(topLevel => {
                 const hasChildren = Object.keys(topLevel.resources).length > 0;
                 const topLevelIcon = selectedBillingType === 'payg' ? 'fas fa-folder' : 'fas fa-user';
-                const childrenLabel = selectedBillingType === 'payg' ? 'resources' : 'subscriptions';
+                const childrenLabel = selectedBillingType === 'payg' ? 'resources' : 'products';
 
                 html += `
                     <details class="level-1">
@@ -1279,20 +1270,22 @@ GitHub: https://github.com/cafasdon/azurebillreport
             let html = '';
 
             Object.values(resources).forEach(resource => {
-                const hasChildren = Object.keys(resource.products).length > 0;
+                // For new RI structure, resources ARE products (no intermediate subscription level)
+                // For PayG structure, resources have products
+                const hasChildren = resource.products ? Object.keys(resource.products).length > 0 : resource.items && resource.items.length > 0;
                 const resourceIcon = getResourceIcon(resource.type);
 
                 // Different display for RI vs Pay-as-you-go
                 let resourceDetails = '';
                 if (selectedBillingType === 'ri') {
+                    // New RI structure: resource IS the product
                     resourceDetails = `
-                        <div class="resource-type">${resource.type} • ${Object.keys(resource.products).length} products • ${resource.itemCount} billing items</div>
-                        ${resource.billingPeriod ? `<div class="resource-type"><small>Billing Period: ${resource.billingPeriod}</small></div>` : ''}
-                        ${resource.startDate && resource.endDate ? `<div class="resource-type"><small>Period: ${resource.startDate} to ${resource.endDate}</small></div>` : ''}
+                        <div class="resource-type">${resource.type}, ${resource.meterName || 'Unknown SKU'} • ${resource.itemCount} reservations</div>
                     `;
                 } else {
+                    // PayG structure: resource has products
                     resourceDetails = `
-                        <div class="resource-type">${resource.type} • ${Object.keys(resource.products).length} products • ${resource.itemCount} billing items</div>
+                        <div class="resource-type">${resource.type} • ${Object.keys(resource.products || {}).length} products • ${resource.itemCount} billing items</div>
                         ${resource.parentResource ? `<div class="resource-type"><small>Parent: ${resource.parentResource}</small></div>` : ''}
                     `;
                 }
@@ -1312,7 +1305,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
                                 </div>
                             </div>
                         </summary>
-                        ${hasChildren ? `<div class="resource-content">${generateCustomerProductsHTML(resource.products)}</div>` : ''}
+                        ${hasChildren ? `<div class="resource-content">${selectedBillingType === 'ri' ? generateCustomerItemsHTML(resource.items) : generateCustomerProductsHTML(resource.products)}</div>` : ''}
                     </details>
                 `;
             });
@@ -1352,12 +1345,21 @@ GitHub: https://github.com/cafasdon/azurebillreport
         function generateCustomerItemsHTML(items) {
             let html = '';
 
-            items.forEach(item => {
+            items.forEach((item, index) => {
+                // For RI items, show subscription context; for PayG items, show usage date
+                const itemTitle = item.subscriptionId
+                    ? `Reservation ${index + 1}`
+                    : `Usage: ${item.usageDate}`;
+
+                const itemInfo = item.subscriptionId
+                    ? `Qty: ${item.quantity} @ ${selectedCurrencySymbol}${(parseFloat(item.unitPrice) || 0).toFixed(4)} | Subscription: ${item.subscriptionId.substring(0, 8)}...`
+                    : `Qty: ${item.quantity} @ ${selectedCurrencySymbol}${(parseFloat(item.unitPrice) || 0).toFixed(4)} | Region: ${item.meterRegion || 'N/A'}`;
+
                 html += `
                     <div class="meter-item level-4">
                         <div class="meter-details">
-                            <div class="meter-name">Usage: ${item.usageDate}</div>
-                            <div class="meter-info">Qty: ${item.quantity} @ ${selectedCurrencySymbol}${(parseFloat(item.unitPrice) || 0).toFixed(4)} | Region: ${item.meterRegion || 'N/A'}</div>
+                            <div class="meter-name">${itemTitle}</div>
+                            <div class="meter-info">${itemInfo}</div>
                         </div>
                         <div class="cost-info">
                             <div class="cost-final">${selectedCurrencySymbol}${item.finalCost.toFixed(2)}</div>
