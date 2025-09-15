@@ -81,23 +81,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
             border-color: #1976d2;
         }
 
-        .currency-option {
-            padding: 0.75rem;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .currency-option:hover {
-            background: #f8f9fa;
-        }
-
-        .currency-option.selected {
-            background: #e3f2fd;
-            border-color: #007bff;
-        }
+        /* Removed currency selection styles - now using fixed GBP currency */
 
         .progress {
             height: 8px;
@@ -255,45 +239,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
             margin-left: 3rem;
         }
 
-        /* Billing Type Selection Styles */
-        .billing-type-option {
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            height: 100%;
-        }
-
-        .billing-type-option:hover {
-            border-color: #007bff;
-            background: #f8f9fa;
-        }
-
-        .billing-type-option input[type="radio"] {
-            display: none;
-        }
-
-        .billing-type-option input[type="radio"]:checked+.billing-type-label {
-            color: #007bff;
-        }
-
-        .billing-type-option input[type="radio"]:checked {
-            background: #e3f2fd;
-            border-color: #007bff;
-        }
-
-        .billing-type-option:has(input[type="radio"]:checked) {
-            background: #e3f2fd;
-            border-color: #007bff;
-        }
-
-        .billing-type-label {
-            cursor: pointer;
-            margin: 0;
-            display: block;
-            width: 100%;
-        }
+        /* Removed billing type selection styles - now using automatic detection */
     </style>
 </head>
 
@@ -326,33 +272,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
                 <h5><i class="fas fa-upload me-2"></i>Step 1: Upload Azure Billing File</h5>
             </div>
             <div class="card-body">
-                <!-- Billing Type Selection -->
-                <div class="mb-4">
-                    <h6 class="mb-3"><i class="fas fa-file-invoice me-2"></i>Select Billing Type</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="billing-type-option" data-type="payg">
-                                <input type="radio" id="billingPayg" name="billingType" value="payg" checked>
-                                <label for="billingPayg" class="billing-type-label">
-                                    <i class="fas fa-clock me-2"></i>
-                                    <strong>Pay-as-you-go</strong>
-                                    <small class="d-block text-muted">Daily usage billing with resource groups</small>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="billing-type-option" data-type="ri">
-                                <input type="radio" id="billingRi" name="billingType" value="ri">
-                                <label for="billingRi" class="billing-type-label">
-                                    <i class="fas fa-calendar-check me-2"></i>
-                                    <strong>Reserved Instances</strong>
-                                    <small class="d-block text-muted">Subscription-based reserved capacity
-                                        billing</small>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Automatic Billing Type Detection (no manual selection needed) -->
 
                 <div class="upload-zone" id="uploadZone">
                     <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
@@ -366,26 +286,26 @@ GitHub: https://github.com/cafasdon/azurebillreport
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <h6 class="mb-1"><i class="fas fa-info-circle me-2"></i>Need help with file structure?</h6>
-                            <p class="mb-0 small" id="sampleDescription">Download our sample Excel file to see the
-                                expected Azure billing data
-                                format with hierarchical relationships.</p>
+                            <p class="mb-0 small">Download our sample Excel files to see the expected Azure billing data
+                                formats. The system will automatically detect your billing type.</p>
                         </div>
                         <div class="btn-group">
-                            <a href="./example/AzureBilling_Sample_Structure.xlsx" id="samplePaygLink"
-                                download="AzureBilling_Sample_Structure.xlsx" class="btn btn-outline-primary btn-sm">
+                            <a href="./example/AzureBilling_Sample_Structure.xlsx"
+                                download="AzureBilling_Sample_Structure.xlsx" class="btn btn-primary btn-sm">
                                 <i class="fas fa-download me-2"></i>Pay-as-you-go Sample
                             </a>
                             <a href="./example/RI- AzureServicesBillingReport_INV00100392_mex99654758.xlsx"
-                                id="sampleRiLink" download="RI_Sample.xlsx" class="btn btn-outline-secondary btn-sm">
+                                download="RI_Sample.xlsx" class="btn btn-primary btn-sm">
                                 <i class="fas fa-download me-2"></i>Reserved Instances Sample
                             </a>
                         </div>
                     </div>
                     <div class="mt-2">
-                        <small class="text-muted" id="sampleDetails">
-                            <strong>Pay-as-you-go sample:</strong> VM with dependencies (disk, OS license, backup) •
-                            Resource
-                            groups • Parent-child relationships • Required columns
+                        <small class="text-muted">
+                            <strong>Pay-as-you-go:</strong> VM with dependencies, resource groups, parent-child
+                            relationships •
+                            <strong>Reserved Instances:</strong> Customer subscriptions, reserved capacity billing,
+                            product SKUs
                         </small>
                     </div>
                 </div>
@@ -419,18 +339,10 @@ GitHub: https://github.com/cafasdon/azurebillreport
             <div class="card-body">
                 <div class="row">
                     <div class="col-lg-6">
-                        <h6><i class="fas fa-money-bill-wave me-2"></i>Currency Selection</h6>
-                        <div id="currencyOptions">
-                            <div class="currency-option selected" data-currency="GBP" data-symbol="£"
-                                onclick="selectCurrency('GBP', '£', this)">
-                                <i class="fas fa-check-circle me-2"></i>
-                                <strong>GBP (£)</strong> - British Pound
-                            </div>
-                            <div class="currency-option" data-currency="USD" data-symbol="$"
-                                onclick="selectCurrency('USD', '$', this)">
-                                <i class="far fa-circle me-2"></i>
-                                <strong>USD ($)</strong> - US Dollar
-                            </div>
+                        <h6><i class="fas fa-money-bill-wave me-2"></i>Currency</h6>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            All billing reports use <strong>GBP (£)</strong> as the standard currency.
                         </div>
                     </div>
 
@@ -530,6 +442,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
         let hierarchicalData = null;
         let currentStep = 1;
         let globalMarkupPercent = 0;
+        // Fixed currency - always use GBP for all billing reports
         let selectedCurrency = 'GBP';
         let selectedCurrencySymbol = '£';
         let companyName = '';
@@ -542,19 +455,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
         });
 
         function setupEventListeners() {
-            // Billing type selection events
-            document.querySelectorAll('input[name="billingType"]').forEach(radio => {
-                radio.addEventListener('change', handleBillingTypeChange);
-            });
-
-            // Billing type option click events
-            document.querySelectorAll('.billing-type-option').forEach(option => {
-                option.addEventListener('click', function () {
-                    const radio = this.querySelector('input[type="radio"]');
-                    radio.checked = true;
-                    handleBillingTypeChange({ target: radio });
-                });
-            });
+            // Removed billing type selection events - now using automatic detection
 
             // File upload events
             document.getElementById('uploadZone').addEventListener('click', function () {
@@ -599,31 +500,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
             });
         }
 
-        function handleBillingTypeChange(e) {
-            selectedBillingType = e.target.value;
-
-            // Update sample data info based on selected billing type
-            const sampleDescription = document.getElementById('sampleDescription');
-            const sampleDetails = document.getElementById('sampleDetails');
-            const samplePaygLink = document.getElementById('samplePaygLink');
-            const sampleRiLink = document.getElementById('sampleRiLink');
-
-            if (selectedBillingType === 'payg') {
-                sampleDescription.textContent = 'Download our Pay-as-you-go sample to see the expected daily usage billing format.';
-                sampleDetails.innerHTML = '<strong>Pay-as-you-go sample:</strong> VM with dependencies (disk, OS license, backup) • Resource groups • Parent-child relationships • Required columns';
-                samplePaygLink.classList.remove('btn-outline-primary');
-                samplePaygLink.classList.add('btn-primary');
-                sampleRiLink.classList.remove('btn-primary');
-                sampleRiLink.classList.add('btn-outline-secondary');
-            } else {
-                sampleDescription.textContent = 'Download our Reserved Instances sample to see the expected subscription billing format.';
-                sampleDetails.innerHTML = '<strong>Reserved Instances sample:</strong> Customer subscriptions • Reserved capacity billing • Product SKUs • Billing periods';
-                sampleRiLink.classList.remove('btn-outline-secondary');
-                sampleRiLink.classList.add('btn-primary');
-                samplePaygLink.classList.remove('btn-primary');
-                samplePaygLink.classList.add('btn-outline-primary');
-            }
-        }
+        // Removed handleBillingTypeChange function - now using automatic detection
 
         function handleFileSelect(e) {
             const file = e.target.files[0];
@@ -686,15 +563,20 @@ GitHub: https://github.com/cafasdon/azurebillreport
             const firstRow = data[0];
             const columns = Object.keys(firstRow);
 
+            // Check for Reserved Instances specific columns (more distinctive)
+            const riColumns = ['Customer Name', 'Subscription Id', 'Sub Total', 'Billing Period', 'Sku Name'];
+            const hasRiColumns = riColumns.some(col => columns.includes(col));
+
             // Check for Pay-as-you-go specific columns
-            const paygColumns = ['Usage Date', 'Resource Group', 'Resource Name', 'Meter Name'];
-            const hasPaygColumns = paygColumns.every(col => columns.includes(col));
+            const paygColumns = ['Resource Group', 'Total Cost', 'Usage Date', 'Meter Name', 'Tags'];
+            const hasPaygColumns = paygColumns.some(col => columns.includes(col));
 
-            // Check for Reserved Instances specific columns
-            const riColumns = ['CustomerId', 'Customer Name', 'Billing Period', 'Sku Name', 'Subscription Id'];
-            const hasRiColumns = riColumns.every(col => columns.includes(col));
-
-            if (hasRiColumns) {
+            if (hasRiColumns && !hasPaygColumns) {
+                return 'ri';
+            } else if (hasPaygColumns && !hasRiColumns) {
+                return 'payg';
+            } else if (hasRiColumns) {
+                // If both have some columns, prioritize RI detection
                 return 'ri';
             } else if (hasPaygColumns) {
                 return 'payg';
@@ -712,13 +594,13 @@ GitHub: https://github.com/cafasdon/azurebillreport
                 return;
             }
 
-            // Detect billing type from data structure if not manually selected
+            // Automatically detect billing type from data structure
             const detectedBillingType = detectBillingType(data);
-            if (detectedBillingType && detectedBillingType !== selectedBillingType) {
-                // Auto-switch to detected type
+            if (detectedBillingType) {
                 selectedBillingType = detectedBillingType;
-                document.querySelector(`input[value="${detectedBillingType}"]`).checked = true;
-                handleBillingTypeChange({ target: { value: detectedBillingType } });
+            } else {
+                showError('Unable to determine billing type. Please ensure your file contains the expected Azure billing structure.');
+                return;
             }
 
             // Process data based on billing type
@@ -762,18 +644,15 @@ GitHub: https://github.com/cafasdon/azurebillreport
                 });
             }
 
-            // Auto-detect currency from data
-            autoDetectCurrency(data);
-
-            // Show file info
+            // Show file info with auto-detected billing type
             const billingTypeLabel = selectedBillingType === 'payg' ? 'Pay-as-you-go' : 'Reserved Instances';
             document.getElementById('fileDetails').innerHTML = `
                 <div class="mt-2">
                     <strong>File:</strong> ${file.name}<br>
                     <strong>Size:</strong> ${(file.size / 1024).toFixed(1)} KB<br>
                     <strong>Records:</strong> ${data.length.toLocaleString()}<br>
-                    <strong>Billing Type:</strong> ${billingTypeLabel}<br>
-                    <strong>Detected Currency:</strong> ${selectedCurrency} (${selectedCurrencySymbol})
+                    <strong>Auto-detected Type:</strong> ${billingTypeLabel}<br>
+                    <strong>Currency:</strong> ${selectedCurrency} (${selectedCurrencySymbol})
                 </div>
             `;
 
@@ -794,38 +673,9 @@ GitHub: https://github.com/cafasdon/azurebillreport
             }
         }
 
-        function autoDetectCurrency(data) {
-            // Simple currency detection based on common patterns
-            const sampleData = data.slice(0, 100); // Check first 100 records
+        // Removed autoDetectCurrency function - now using fixed GBP currency
 
-            // Look for UK indicators
-            const ukIndicators = sampleData.some(row => {
-                const region = (row['Meter Region'] || '').toLowerCase();
-                const location = (row['Location'] || '').toLowerCase();
-                return region.includes('uk') || location.includes('uk') ||
-                    region.includes('britain') || location.includes('britain');
-            });
-
-            if (ukIndicators) {
-                selectCurrency('GBP', '£', document.querySelector('[data-currency="GBP"]'));
-            } else {
-                selectCurrency('USD', '$', document.querySelector('[data-currency="USD"]'));
-            }
-        }
-
-        function selectCurrency(currency, symbol, element) {
-            selectedCurrency = currency;
-            selectedCurrencySymbol = symbol;
-
-            // Update UI
-            document.querySelectorAll('.currency-option').forEach(option => {
-                option.classList.remove('selected');
-                option.querySelector('i').className = 'far fa-circle me-2';
-            });
-
-            element.classList.add('selected');
-            element.querySelector('i').className = 'fas fa-check-circle me-2';
-        }
+        // Removed selectCurrency function - now using fixed GBP currency
 
         // Navigation functions
         function proceedToConfig() {
@@ -1613,13 +1463,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
             document.getElementById('companyName').value = '';
             document.getElementById('reportTitle').value = 'Azure Billing Report';
 
-            // Reset currency selection
-            document.querySelectorAll('.currency-option').forEach(option => {
-                option.classList.remove('selected');
-                option.querySelector('i').className = 'far fa-circle me-2';
-            });
-            document.querySelector('[data-currency="GBP"]').classList.add('selected');
-            document.querySelector('[data-currency="GBP"] i').className = 'fas fa-check-circle me-2';
+            // Currency is fixed to GBP - no reset needed
 
             // Hide all sections except upload
             document.querySelectorAll('.card').forEach(card => card.classList.add('hidden'));
