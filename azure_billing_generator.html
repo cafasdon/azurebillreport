@@ -453,9 +453,100 @@ GitHub: https://github.com/cafasdon/azurebillreport
         let selectedBillingType = 'payg'; // 'payg' or 'ri'
 
         // Initialize the application
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Initialize integrated user license manager if available
+            if (window.USER_LICENSE_MANAGER) {
+                const isReady = await USER_LICENSE_MANAGER.init();
+                if (!isReady) {
+                    console.log('⏳ Waiting for user authentication and licensing...');
+
+                    // Listen for authentication events
+                    window.addEventListener('userAuthenticated', async function (event) {
+                        console.log('✅ User authenticated, validating license...');
+                        addUserInfoToHeader();
+
+                        // Wait for license validation
+                        if (await USER_LICENSE_MANAGER.validateUserLicense()) {
+                            setupEventListeners();
+                        }
+                    });
+
+                    return; // Don't initialize app until ready
+                }
+
+                // Add user info to header if authenticated
+                if (USER_LICENSE_MANAGER.isAuthenticated) {
+                    addUserInfoToHeader();
+                }
+            } else {
+                // Fallback to individual systems for backward compatibility
+                if (window.AUTH_SYSTEM && window.FEATURE_FLAGS && window.FEATURE_FLAGS.AUTHENTICATION_REQUIRED) {
+                    const isAuthenticated = await AUTH_SYSTEM.init();
+                    if (!isAuthenticated) {
+                        console.log('⏳ Waiting for user authentication...');
+                        return;
+                    }
+                    addUserInfoToHeader();
+                }
+            }
+
             setupEventListeners();
         });
+
+        // Add user info to header
+        function addUserInfoToHeader() {
+            let user = null;
+            let license = null;
+
+            // Get user and license from integrated manager or fallback to individual systems
+            if (window.USER_LICENSE_MANAGER && USER_LICENSE_MANAGER.isAuthenticated) {
+                user = USER_LICENSE_MANAGER.getCurrentUser();
+                license = USER_LICENSE_MANAGER.getCurrentLicense();
+            } else if (window.AUTH_SYSTEM && AUTH_SYSTEM.isUserAuthenticated()) {
+                user = AUTH_SYSTEM.getCurrentUser();
+            }
+
+            if (!user) return;
+
+            const headerTitle = document.querySelector('h1');
+
+            if (headerTitle && user && !document.querySelector('.user-dropdown')) {
+                // Add user dropdown to header
+                const userDropdown = document.createElement('div');
+                userDropdown.className = 'dropdown d-inline-block ms-3 user-dropdown';
+
+                // Build license info
+                const licenseInfo = license ? `
+                    <li><span class="dropdown-item-text text-success small">
+                        <i class="fas fa-certificate me-1"></i>Licensed to: ${license.licensee}
+                    </span></li>
+                    <li><hr class="dropdown-divider"></li>
+                ` : '';
+
+                userDropdown.innerHTML = `
+                    <button class="btn btn-outline-primary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown">
+                        ${user.picture ? `<img src="${user.picture}" class="rounded-circle me-2" width="24" height="24">` : '<i class="fas fa-user me-2"></i>'}
+                        ${user.name || user.email}
+                        ${license ? '<i class="fas fa-certificate text-success ms-1" title="Licensed"></i>' : ''}
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><h6 class="dropdown-header">${user.name}</h6></li>
+                        <li><span class="dropdown-item-text text-muted small">${user.email}</span></li>
+                        ${licenseInfo}
+                        <li><a class="dropdown-item" href="#" onclick="${window.USER_LICENSE_MANAGER ? 'USER_LICENSE_MANAGER.signOut()' : 'AUTH_SYSTEM.signOut()'}">
+                            <i class="fas fa-sign-out-alt me-2"></i>Sign Out
+                        </a></li>
+                    </ul>
+                `;
+
+                headerTitle.appendChild(userDropdown);
+
+                // Initialize dropdown if Bootstrap is available
+                if (window.bootstrap && bootstrap.Dropdown) {
+                    new bootstrap.Dropdown(userDropdown.querySelector('.dropdown-toggle'));
+                }
+            }
+        }
 
         function setupEventListeners() {
             // Removed billing type selection events - now using automatic detection
@@ -631,13 +722,36 @@ GitHub: https://github.com/cafasdon/azurebillreport
             }
         }
 
-        function detectBillingType(data) {
-            if (!data || data.length === 0) return null;
+        // Enhanced document detection system with filename analysis and multi-customer support
+        function analyzeFilename(filename) {
+            if (!filename) return { type: null, confidence: 0 };
+
+            const normalizedName = filename.toLowerCase();
+
+            // High confidence filename patterns
+            if (normalizedName.includes('azureservicesbillingreport')) {
+                return { type: 'ri', confidence: 0.9, source: 'filename_pattern' };
+            }
+            if (normalizedName.includes('azureusagesummary')) {
+                return { type: 'payg', confidence: 0.9, source: 'filename_pattern' };
+            }
+
+            // Medium confidence patterns
+            if (normalizedName.includes('billing') && normalizedName.includes('report')) {
+                return { type: 'ri', confidence: 0.6, source: 'filename_keywords' };
+            }
+            if (normalizedName.includes('usage') && normalizedName.includes('summary')) {
+                return { type: 'payg', confidence: 0.6, source: 'filename_keywords' };
+            }
+
+            return { type: null, confidence: 0 };
+        }
+
+        function analyzeColumnStructure(data) {
+            if (!data || data.length === 0) return { type: null, confidence: 0 };
 
             const firstRow = data[0];
             const columns = Object.keys(firstRow);
-
-            // Normalize column names for comparison (remove extra spaces, handle case variations)
             const normalizedColumns = columns.map(col => col.trim().toLowerCase());
 
             // Helper function for flexible column matching
@@ -650,34 +764,196 @@ GitHub: https://github.com/cafasdon/azurebillreport
                 );
             }
 
-            // Pay-as-you-go is characterized by detailed resource-level billing
-            // Key indicators: Resource Group + Meter Name + Usage Date (resource-level granularity)
+            // PayG strong indicators (resource-level granularity)
             const paygStrongIndicators = ['Resource Group', 'Meter Name', 'Usage Date'];
             const hasStrongPaygIndicators = paygStrongIndicators.every(col => hasColumn(col));
 
-            // Additional PayG supporting columns
-            const paygSupportingColumns = ['Total Cost', 'Tags', 'Meter Id', 'Product Name', 'Quantity'];
-            const hasPaygSupporting = paygSupportingColumns.some(col => hasColumn(col));
+            // PayG supporting columns
+            const paygSupportingColumns = ['Total Cost', 'Tags', 'Meter Id', 'Meter Region'];
+            const paygSupportingCount = paygSupportingColumns.filter(col => hasColumn(col)).length;
 
-            // Reserved Instances is characterized by subscription-level billing without resource details
-            // Key indicators: Must have RI-specific columns AND lack detailed resource metering
-            const riSpecificColumns = ['Sub Total', 'Billing Period', 'Sku Name'];
-            const hasRiSpecific = riSpecificColumns.some(col => hasColumn(col));
+            // RI specific indicators (subscription-level billing)
+            const riSpecificColumns = ['Sub Total', 'Billing Period', 'Sku Name', 'Subscription StartDate', 'Subscription EndDate'];
+            const riSpecificCount = riSpecificColumns.filter(col => hasColumn(col)).length;
 
-            // Customer/Subscription columns can appear in both types, so they're not decisive
+            // RI supporting columns
+            const riSupportingColumns = ['Publisher Name', 'Customer TenantId', 'Product Category'];
+            const riSupportingCount = riSupportingColumns.filter(col => hasColumn(col)).length;
 
-            // Decision logic: Prioritize resource-level granularity for PayG detection
-            if (hasStrongPaygIndicators && hasPaygSupporting) {
-                return 'payg';  // Strong PayG indicators take precedence
-            } else if (hasRiSpecific && !hasStrongPaygIndicators) {
-                return 'ri';    // RI-specific columns without resource-level detail
-            } else if (hasStrongPaygIndicators) {
-                return 'payg';  // Resource-level detail indicates PayG
-            } else if (hasRiSpecific) {
-                return 'ri';    // RI-specific columns
+            // Calculate confidence scores
+            let paygConfidence = 0;
+            let riConfidence = 0;
+
+            if (hasStrongPaygIndicators) {
+                paygConfidence = 0.7 + (paygSupportingCount * 0.1);
+            } else if (paygSupportingCount >= 2) {
+                paygConfidence = 0.4 + (paygSupportingCount * 0.1);
             }
 
-            return null; // Cannot determine
+            if (riSpecificCount >= 2) {
+                riConfidence = 0.6 + (riSpecificCount * 0.1) + (riSupportingCount * 0.05);
+            } else if (riSpecificCount >= 1) {
+                riConfidence = 0.3 + (riSpecificCount * 0.1);
+            }
+
+            // Determine type based on confidence
+            if (paygConfidence > riConfidence && paygConfidence > 0.5) {
+                return { type: 'payg', confidence: Math.min(paygConfidence, 1.0), source: 'column_structure' };
+            } else if (riConfidence > paygConfidence && riConfidence > 0.5) {
+                return { type: 'ri', confidence: Math.min(riConfidence, 1.0), source: 'column_structure' };
+            }
+
+            return { type: null, confidence: 0 };
+        }
+
+        function analyzeCustomerStructure(data) {
+            if (!data || data.length === 0) return { isMultiCustomer: false, customerCount: 0, customers: [] };
+
+            // Check for customer identification columns
+            const customerColumns = ['Customer Name', 'Customer Account Number', 'CustomerId'];
+            let customerColumn = null;
+
+            for (const col of customerColumns) {
+                if (data[0].hasOwnProperty(col)) {
+                    customerColumn = col;
+                    break;
+                }
+            }
+
+            if (!customerColumn) {
+                return { isMultiCustomer: false, customerCount: 0, customers: [] };
+            }
+
+            // Count unique customers
+            const uniqueCustomers = [...new Set(data.map(row => row[customerColumn]).filter(name => name && name.trim()))];
+
+            return {
+                // If the file has customer columns, it should be treated as multi-customer structure
+                // even if it only contains one customer (for proper hierarchy and individual reports)
+                isMultiCustomer: true,
+                customerCount: uniqueCustomers.length,
+                customers: uniqueCustomers,
+                customerColumn: customerColumn
+            };
+        }
+
+        function detectDocumentType(data, filename) {
+            // Phase 1: Filename analysis (highest priority)
+            const filenameAnalysis = analyzeFilename(filename);
+
+            // Phase 2: Column structure analysis
+            const columnAnalysis = analyzeColumnStructure(data);
+
+            // Phase 3: Customer structure analysis
+            const customerAnalysis = analyzeCustomerStructure(data);
+
+            // Combine analyses with weighted confidence
+            let finalType = null;
+            let finalConfidence = 0;
+            let sources = [];
+
+            // Filename has highest weight if confidence is high
+            if (filenameAnalysis.confidence >= 0.8) {
+                finalType = filenameAnalysis.type;
+                finalConfidence = filenameAnalysis.confidence;
+                sources.push(filenameAnalysis.source);
+            }
+            // If filename confidence is medium, combine with column analysis
+            else if (filenameAnalysis.confidence >= 0.5 && columnAnalysis.type === filenameAnalysis.type) {
+                finalType = filenameAnalysis.type;
+                finalConfidence = (filenameAnalysis.confidence * 0.6) + (columnAnalysis.confidence * 0.4);
+                sources.push(filenameAnalysis.source, columnAnalysis.source);
+            }
+            // Use column analysis if filename is not reliable
+            else if (columnAnalysis.confidence >= 0.6) {
+                finalType = columnAnalysis.type;
+                finalConfidence = columnAnalysis.confidence;
+                sources.push(columnAnalysis.source);
+            }
+            // Fallback to any available analysis
+            else if (filenameAnalysis.confidence > columnAnalysis.confidence) {
+                finalType = filenameAnalysis.type;
+                finalConfidence = filenameAnalysis.confidence;
+                sources.push(filenameAnalysis.source);
+            } else if (columnAnalysis.confidence > 0) {
+                finalType = columnAnalysis.type;
+                finalConfidence = columnAnalysis.confidence;
+                sources.push(columnAnalysis.source);
+            }
+
+            return {
+                billingType: finalType,
+                confidence: finalConfidence,
+                sources: sources,
+                customerStructure: customerAnalysis,
+                filenameAnalysis: filenameAnalysis,
+                columnAnalysis: columnAnalysis
+            };
+        }
+
+        // Legacy function for backward compatibility
+        function detectBillingType(data) {
+            const result = detectDocumentType(data, null);
+            return result.billingType;
+        }
+
+        // Enhanced precision functions for currency calculations
+        function parseCurrencyValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return 0;
+            }
+
+            // Handle string values that might contain currency symbols or formatting
+            if (typeof value === 'string') {
+                // Remove currency symbols, commas, and other non-numeric characters except decimal point and minus
+                const cleanValue = value.replace(/[^\d.-]/g, '');
+                const parsed = parseFloat(cleanValue);
+                return isNaN(parsed) ? 0 : parsed;
+            }
+
+            // Handle numeric values
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        function calculateMarkup(originalCost, markupPercent) {
+            const original = parseCurrencyValue(originalCost);
+            const percent = parseCurrencyValue(markupPercent);
+
+            // Use precise calculation to avoid floating-point errors
+            const markupAmount = Math.round((original * percent / 100) * 100) / 100;
+            return markupAmount;
+        }
+
+        function calculateFinalCost(originalCost, markupAmount) {
+            const original = parseCurrencyValue(originalCost);
+            const markup = parseCurrencyValue(markupAmount);
+
+            // Use precise calculation to avoid floating-point errors
+            const finalCost = Math.round((original + markup) * 100) / 100;
+            return finalCost;
+        }
+
+        function formatCurrency(value, decimals = 2) {
+            const numValue = parseCurrencyValue(value);
+            return numValue.toFixed(decimals);
+        }
+
+        function validateCostData(row, billingType) {
+            const costField = billingType === 'payg' ? 'Total Cost' : 'Sub Total';
+            const costValue = row[costField];
+
+            if (costValue === null || costValue === undefined || costValue === '') {
+                console.warn(`Missing cost data in row:`, row);
+                return false;
+            }
+
+            const parsed = parseCurrencyValue(costValue);
+            if (parsed < 0) {
+                console.warn(`Negative cost value detected:`, costValue, 'in row:', row);
+            }
+
+            return true;
         }
 
         function processUploadedData(data, file) {
@@ -689,12 +965,39 @@ GitHub: https://github.com/cafasdon/azurebillreport
                 return;
             }
 
-            // Automatically detect billing type from data structure
-            const detectedBillingType = detectBillingType(data);
-            if (detectedBillingType) {
-                selectedBillingType = detectedBillingType;
+            // Check row limit for free version
+            if (window.FEATURE_FLAGS && window.FEATURE_FLAGS.MAX_ROWS > 0 && data.length > window.FEATURE_FLAGS.MAX_ROWS) {
+                showError(`This file contains ${data.length.toLocaleString()} rows, but the demo version is limited to ${window.FEATURE_FLAGS.MAX_ROWS.toLocaleString()} rows. Please upgrade to the licensed version for unlimited processing.`);
+                return;
+            }
+
+            // Enhanced document detection with filename analysis
+            const detectionResult = detectDocumentType(data, file.name);
+
+            if (detectionResult.billingType && detectionResult.confidence >= 0.5) {
+                selectedBillingType = detectionResult.billingType;
+
+                // Store detection metadata for debugging and reporting
+                window.documentDetection = detectionResult;
+
+                console.log('Document Detection Results:', {
+                    billingType: detectionResult.billingType,
+                    confidence: detectionResult.confidence.toFixed(2),
+                    sources: detectionResult.sources,
+                    customerStructure: detectionResult.customerStructure,
+                    filename: file.name
+                });
+
+                // Show detection info to user if confidence is low
+                if (detectionResult.confidence < 0.8) {
+                    console.warn(`Document type detection confidence is ${(detectionResult.confidence * 100).toFixed(1)}%. Please verify the results.`);
+                }
             } else {
-                showError('Unable to determine billing type. Please ensure your file contains the expected Azure billing structure.');
+                let errorMessage = 'Unable to determine billing type. Please ensure your file contains the expected Azure billing structure.';
+                if (detectionResult.confidence > 0) {
+                    errorMessage += ` Detection confidence was only ${(detectionResult.confidence * 100).toFixed(1)}%.`;
+                }
+                showError(errorMessage);
                 return;
             }
 
@@ -797,16 +1100,22 @@ GitHub: https://github.com/cafasdon/azurebillreport
 
             // Process data with markup based on billing type
             processedData = uploadedData.map(row => {
-                // Use the correct cost field based on billing type
-                let originalCost;
-                if (selectedBillingType === 'payg') {
-                    originalCost = parseFloat(row['Total Cost']) || 0;
-                } else {
-                    originalCost = parseFloat(row['Sub Total']) || 0;
+                // Validate cost data first
+                if (!validateCostData(row, selectedBillingType)) {
+                    console.warn('Invalid cost data in row, using 0:', row);
                 }
 
-                const markupAmount = originalCost * (globalMarkupPercent / 100);
-                const finalCost = originalCost + markupAmount;
+                // Use the correct cost field based on billing type with enhanced parsing
+                let originalCost;
+                if (selectedBillingType === 'payg') {
+                    originalCost = parseCurrencyValue(row['Total Cost']);
+                } else {
+                    originalCost = parseCurrencyValue(row['Sub Total']);
+                }
+
+                const markupAmount = calculateMarkup(originalCost, globalMarkupPercent);
+                const finalCost = calculateFinalCost(originalCost, markupAmount);
+
                 return {
                     ...row,
                     'Original Cost': originalCost,
@@ -843,30 +1152,72 @@ GitHub: https://github.com/cafasdon/azurebillreport
         function createPaygHierarchy(data) {
             const hierarchy = {};
 
-            // Group by Resource Group for Pay-as-you-go
+            // Use customer structure analysis to determine hierarchy
+            const customerStructure = window.documentDetection?.customerStructure || analyzeCustomerStructure(data);
+            const isMultiCustomer = customerStructure.isMultiCustomer;
+            const customerColumn = customerStructure.customerColumn;
+
+            // Multi-customer structure: Customer → Resource Group → Resource → Product/Meter
+            // Single-customer structure: Resource Group → Resource → Product/Meter
             data.forEach(row => {
                 const resourceGroup = row['Resource Group'] || 'Unknown Resource Group';
                 const resourceName = row['Resource Name'] || 'Unknown Resource';
                 const productName = row['Product Name'] || 'Unknown Product';
                 const meterName = row['Meter Name'] || 'Unknown Meter';
                 const tags = row['Tags'] || '';
+                const customerName = isMultiCustomer ? (row[customerColumn] || 'Unknown Customer') : null;
 
-                // Initialize resource group
-                if (!hierarchy[resourceGroup]) {
-                    hierarchy[resourceGroup] = {
-                        name: resourceGroup,
-                        type: 'Resource Group',
-                        resources: {},
-                        totalCost: 0,
-                        totalOriginalCost: 0,
-                        totalMarkupAmount: 0,
-                        itemCount: 0
-                    };
+                if (isMultiCustomer) {
+                    // Multi-customer hierarchy: Customer → Resource Group → Resource → Product/Meter
+
+                    // Initialize customer level
+                    if (!hierarchy[customerName]) {
+                        hierarchy[customerName] = {
+                            name: customerName,
+                            type: 'Customer',
+                            resources: {},
+                            totalCost: 0,
+                            totalOriginalCost: 0,
+                            totalMarkupAmount: 0,
+                            itemCount: 0
+                        };
+                    }
+
+                    // Initialize resource group within customer
+                    if (!hierarchy[customerName].resources[resourceGroup]) {
+                        hierarchy[customerName].resources[resourceGroup] = {
+                            name: resourceGroup,
+                            type: 'Resource Group',
+                            resources: {},
+                            totalCost: 0,
+                            totalOriginalCost: 0,
+                            totalMarkupAmount: 0,
+                            itemCount: 0
+                        };
+                    }
+                } else {
+                    // Single-customer hierarchy: Resource Group → Resource → Product/Meter
+
+                    // Initialize resource group
+                    if (!hierarchy[resourceGroup]) {
+                        hierarchy[resourceGroup] = {
+                            name: resourceGroup,
+                            type: 'Resource Group',
+                            resources: {},
+                            totalCost: 0,
+                            totalOriginalCost: 0,
+                            totalMarkupAmount: 0,
+                            itemCount: 0
+                        };
+                    }
                 }
 
+                // Get the appropriate container for resource groups
+                const rgContainer = isMultiCustomer ? hierarchy[customerName].resources[resourceGroup] : hierarchy[resourceGroup];
+
                 // Initialize resource within group
-                if (!hierarchy[resourceGroup].resources[resourceName]) {
-                    hierarchy[resourceGroup].resources[resourceName] = {
+                if (!rgContainer.resources[resourceName]) {
+                    rgContainer.resources[resourceName] = {
                         name: resourceName,
                         type: getResourceType(productName, meterName),
                         products: {},
@@ -881,8 +1232,8 @@ GitHub: https://github.com/cafasdon/azurebillreport
 
                 // Initialize product within resource
                 const productKey = `${productName}_${meterName}`;
-                if (!hierarchy[resourceGroup].resources[resourceName].products[productKey]) {
-                    hierarchy[resourceGroup].resources[resourceName].products[productKey] = {
+                if (!rgContainer.resources[resourceName].products[productKey]) {
+                    rgContainer.resources[resourceName].products[productKey] = {
                         name: productName,
                         meterName: meterName,
                         type: 'Product/Meter',
@@ -894,13 +1245,13 @@ GitHub: https://github.com/cafasdon/azurebillreport
                     };
                 }
 
-                // Calculate costs with current markup
-                const originalCost = row['Original Cost'];
-                const markupAmount = originalCost * (globalMarkupPercent / 100);
-                const finalCost = originalCost + markupAmount;
+                // Calculate costs with current markup using enhanced precision
+                const originalCost = parseCurrencyValue(row['Original Cost']);
+                const markupAmount = calculateMarkup(originalCost, globalMarkupPercent);
+                const finalCost = calculateFinalCost(originalCost, markupAmount);
 
                 // Add the individual item
-                const product = hierarchy[resourceGroup].resources[resourceName].products[productKey];
+                const product = rgContainer.resources[resourceName].products[productKey];
                 product.items.push({
                     usageDate: row['Usage Date'],
                     quantity: row['Quantity'],
@@ -912,22 +1263,29 @@ GitHub: https://github.com/cafasdon/azurebillreport
                 });
 
                 // Update totals at all levels
-
                 product.totalOriginalCost += originalCost;
                 product.totalMarkupAmount += markupAmount;
                 product.totalCost += finalCost;
                 product.itemCount += 1;
 
-                const resource = hierarchy[resourceGroup].resources[resourceName];
+                const resource = rgContainer.resources[resourceName];
                 resource.totalOriginalCost += originalCost;
                 resource.totalMarkupAmount += markupAmount;
                 resource.totalCost += finalCost;
                 resource.itemCount += 1;
 
-                hierarchy[resourceGroup].totalOriginalCost += originalCost;
-                hierarchy[resourceGroup].totalMarkupAmount += markupAmount;
-                hierarchy[resourceGroup].totalCost += finalCost;
-                hierarchy[resourceGroup].itemCount += 1;
+                rgContainer.totalOriginalCost += originalCost;
+                rgContainer.totalMarkupAmount += markupAmount;
+                rgContainer.totalCost += finalCost;
+                rgContainer.itemCount += 1;
+
+                // If multi-customer, also update customer totals
+                if (isMultiCustomer) {
+                    hierarchy[customerName].totalOriginalCost += originalCost;
+                    hierarchy[customerName].totalMarkupAmount += markupAmount;
+                    hierarchy[customerName].totalCost += finalCost;
+                    hierarchy[customerName].itemCount += 1;
+                }
             });
 
             return hierarchy;
@@ -936,34 +1294,48 @@ GitHub: https://github.com/cafasdon/azurebillreport
         function createRiHierarchy(data) {
             const hierarchy = {};
 
-            // Group by Customer → Product for Reserved Instances
+            // Use customer structure analysis to determine hierarchy
+            const customerStructure = window.documentDetection?.customerStructure || analyzeCustomerStructure(data);
+            const isMultiCustomer = customerStructure.isMultiCustomer;
+            const customerColumn = customerStructure.customerColumn;
+
+            // Multi-customer structure: Customer → Product → SKU
+            // Single-customer structure: Product → SKU
             data.forEach(row => {
-                const customerName = row['Customer Name'] || 'Unknown Customer';
+                const customerName = isMultiCustomer ? (row[customerColumn] || 'Unknown Customer') : null;
                 const subscriptionId = row['Subscription Id'] || 'Unknown Subscription';
                 const productName = row['Product Name'] || 'Unknown Product';
                 const skuName = row['Sku Name'] || 'Unknown SKU';
                 const billingPeriod = row['Billing Period'] || 'Unknown Period';
 
-                // Initialize customer
-                if (!hierarchy[customerName]) {
-                    hierarchy[customerName] = {
-                        name: customerName,
-                        type: 'Customer',
-                        resources: {},
-                        totalCost: 0,
-                        totalOriginalCost: 0,
-                        totalMarkupAmount: 0,
-                        itemCount: 0
-                    };
-                }
+                if (isMultiCustomer) {
+                    // Multi-customer hierarchy: Customer → Product → SKU
 
-                // Initialize product within customer (group by product name)
+                    // Initialize customer
+                    if (!hierarchy[customerName]) {
+                        hierarchy[customerName] = {
+                            name: customerName,
+                            type: 'Customer',
+                            resources: {},
+                            totalCost: 0,
+                            totalOriginalCost: 0,
+                            totalMarkupAmount: 0,
+                            itemCount: 0
+                        };
+                    }
+                }
+                // For single-customer, products will be at the top level (no customer level)
+
+                // Get the appropriate container for products
+                const productContainer = isMultiCustomer ? hierarchy[customerName].resources : hierarchy;
+
+                // Initialize product (group by product name)
                 const productKey = productName;
-                if (!hierarchy[customerName].resources[productKey]) {
-                    hierarchy[customerName].resources[productKey] = {
+                if (!productContainer[productKey]) {
+                    productContainer[productKey] = {
                         name: productName,
                         meterName: skuName,
-                        type: 'Reserved Instance',
+                        type: isMultiCustomer ? 'Reserved Instance' : 'Product',
                         items: [],
                         totalCost: 0,
                         totalOriginalCost: 0,
@@ -972,13 +1344,13 @@ GitHub: https://github.com/cafasdon/azurebillreport
                     };
                 }
 
-                // Calculate costs with current markup
-                const originalCost = row['Sub Total'] || row['Original Cost'] || 0;
-                const markupAmount = originalCost * (globalMarkupPercent / 100);
-                const finalCost = originalCost + markupAmount;
+                // Calculate costs with current markup using enhanced precision
+                const originalCost = parseCurrencyValue(row['Sub Total'] || row['Original Cost']);
+                const markupAmount = calculateMarkup(originalCost, globalMarkupPercent);
+                const finalCost = calculateFinalCost(originalCost, markupAmount);
 
                 // Add the individual reservation item with subscription context
-                const product = hierarchy[customerName].resources[productKey];
+                const product = productContainer[productKey];
                 product.items.push({
                     usageDate: billingPeriod,
                     quantity: row['Quantity'],
@@ -1002,11 +1374,13 @@ GitHub: https://github.com/cafasdon/azurebillreport
                 product.totalCost += finalCost;
                 product.itemCount += 1;
 
-                // Update totals at customer level
-                hierarchy[customerName].totalOriginalCost += originalCost;
-                hierarchy[customerName].totalMarkupAmount += markupAmount;
-                hierarchy[customerName].totalCost += finalCost;
-                hierarchy[customerName].itemCount += 1;
+                // If multi-customer, also update customer totals
+                if (isMultiCustomer) {
+                    hierarchy[customerName].totalOriginalCost += originalCost;
+                    hierarchy[customerName].totalMarkupAmount += markupAmount;
+                    hierarchy[customerName].totalCost += finalCost;
+                    hierarchy[customerName].itemCount += 1;
+                }
             });
 
             return hierarchy;
@@ -1044,19 +1418,19 @@ GitHub: https://github.com/cafasdon/azurebillreport
                         </div>
                         <div class="col-md-3">
                             <div class="stat-card">
-                                <div class="stat-value">${selectedCurrencySymbol}${totalOriginal.toFixed(2)}</div>
+                                <div class="stat-value">${selectedCurrencySymbol}${formatCurrency(totalOriginal)}</div>
                                 <div class="stat-label">Original Cost</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-card">
-                                <div class="stat-value">${selectedCurrencySymbol}${totalMarkup.toFixed(2)}</div>
+                                <div class="stat-value">${selectedCurrencySymbol}${formatCurrency(totalMarkup)}</div>
                                 <div class="stat-label">Markup Amount</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-card">
-                                <div class="stat-value">${selectedCurrencySymbol}${totalFinal.toFixed(2)}</div>
+                                <div class="stat-value">${selectedCurrencySymbol}${formatCurrency(totalFinal)}</div>
                                 <div class="stat-label">Final Cost</div>
                             </div>
                         </div>
@@ -1082,7 +1456,9 @@ GitHub: https://github.com/cafasdon/azurebillreport
             let html = '';
 
             Object.values(hierarchy).forEach(topLevel => {
-                const hasChildren = Object.keys(topLevel.resources).length > 0;
+                // Handle both multi-customer and single-customer scenarios
+                const resources = topLevel.resources || {};
+                const hasChildren = Object.keys(resources).length > 0;
                 const topLevelIcon = selectedBillingType === 'payg' ? 'fas fa-folder' : 'fas fa-user';
                 const childrenLabel = selectedBillingType === 'payg' ? 'resources' : 'products';
 
@@ -1094,7 +1470,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
                                     <div class="resource-name">
                                         <i class="${topLevelIcon} me-2"></i>${topLevel.name}
                                     </div>
-                                    <div class="resource-type">${topLevel.type} • ${Object.keys(topLevel.resources).length} ${childrenLabel} • ${topLevel.itemCount} billing items</div>
+                                    <div class="resource-type">${topLevel.type} • ${Object.keys(resources).length} ${childrenLabel} • ${topLevel.itemCount} billing items</div>
                                 </div>
                                 <div class="cost-info">
                                     <div class="cost-original">Original: ${selectedCurrencySymbol}${topLevel.totalOriginalCost.toFixed(2)}</div>
@@ -1103,7 +1479,7 @@ GitHub: https://github.com/cafasdon/azurebillreport
                                 </div>
                             </div>
                         </summary>
-                        ${hasChildren ? `<div class="resource-content">${generateResourcesHTML(topLevel.resources)}</div>` : ''}
+                        ${hasChildren ? `<div class="resource-content">${generateResourcesHTML(resources)}</div>` : ''}
                     </details>
                 `;
             });
@@ -1240,7 +1616,9 @@ GitHub: https://github.com/cafasdon/azurebillreport
             let html = '';
 
             Object.values(hierarchy).forEach(topLevel => {
-                const hasChildren = Object.keys(topLevel.resources).length > 0;
+                // Handle both multi-customer and single-customer scenarios
+                const resources = topLevel.resources || {};
+                const hasChildren = Object.keys(resources).length > 0;
                 const topLevelIcon = selectedBillingType === 'payg' ? 'fas fa-folder' : 'fas fa-user';
                 const childrenLabel = selectedBillingType === 'payg' ? 'resources' : 'products';
 
@@ -1252,14 +1630,14 @@ GitHub: https://github.com/cafasdon/azurebillreport
                                     <div class="resource-name">
                                         <i class="${topLevelIcon} me-2"></i>${topLevel.name}
                                     </div>
-                                    <div class="resource-type">${topLevel.type} • ${Object.keys(topLevel.resources).length} ${childrenLabel} • ${topLevel.itemCount} billing items</div>
+                                    <div class="resource-type">${topLevel.type} • ${Object.keys(resources).length} ${childrenLabel} • ${topLevel.itemCount} billing items</div>
                                 </div>
                                 <div class="cost-info">
-                                    <div class="cost-final">${selectedCurrencySymbol}${topLevel.totalCost.toFixed(2)}</div>
+                                    <div class="cost-final">${selectedCurrencySymbol}${formatCurrency(topLevel.totalCost)}</div>
                                 </div>
                             </div>
                         </summary>
-                        ${hasChildren ? `<div class="resource-content">${generateCustomerResourcesHTML(topLevel.resources)}</div>` : ''}
+                        ${hasChildren ? `<div class="resource-content">${generateCustomerResourcesHTML(resources)}</div>` : ''}
                     </details>
                 `;
             });
@@ -1409,6 +1787,9 @@ GitHub: https://github.com/cafasdon/azurebillreport
                         <button type="button" class="btn btn-success" onclick="exportReport()">
                             <i class="fas fa-download me-2"></i>Export HTML
                         </button>
+                        <button type="button" class="btn btn-outline-success" onclick="exportPDF()" id="pdfExportBtn" style="display: none;">
+                            <i class="fas fa-file-pdf me-2"></i>Export PDF
+                        </button>
                         <button type="button" class="btn btn-info" onclick="showIndividualCustomerReports()">
                             <i class="fas fa-users me-2"></i>Individual Customer Reports
                         </button>
@@ -1497,6 +1878,22 @@ GitHub: https://github.com/cafasdon/azurebillreport
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+        }
+
+        function exportPDF() {
+            if (!window.FEATURE_FLAGS || !window.FEATURE_FLAGS.PDF_EXPORT) {
+                showError('PDF export is only available in the licensed version.');
+                return;
+            }
+
+            if (!hierarchicalData) {
+                showError('No report data available to export.');
+                return;
+            }
+
+            // This would integrate with a PDF library like jsPDF or Puppeteer
+            // For now, show a placeholder message
+            showSuccess('PDF export functionality will be implemented in the licensed version with proper PDF generation libraries.');
         }
 
         function generateStandaloneReportHTML() {
@@ -1916,6 +2313,51 @@ GitHub: https://github.com/cafasdon/azurebillreport
                     if (alert) alert.style.display = 'none';
                 }, 5000);
             }
+        }
+
+        // Initialize feature flags and UI
+        function initializeFeatureFlags() {
+            // Default feature flags (will be overridden by build system)
+            if (!window.FEATURE_FLAGS) {
+                window.FEATURE_FLAGS = {
+                    MAX_ROWS: -1, // unlimited by default
+                    PDF_EXPORT: false,
+                    WHITELABEL_BRANDING: false,
+                    WATERMARK: false,
+                    INDIVIDUAL_REPORTS: true,
+                    MARKUP_TOOLS: true,
+                    CSV_SUPPORT: true,
+                    HIERARCHICAL_GROUPING: true,
+                    AUTO_DETECTION: true
+                };
+            }
+
+            // Show/hide PDF export button based on feature flags
+            const pdfBtn = document.getElementById('pdfExportBtn');
+            if (pdfBtn && window.FEATURE_FLAGS.PDF_EXPORT) {
+                pdfBtn.style.display = 'inline-block';
+            }
+
+            // Apply branding placeholders for whitelabel support
+            if (window.FEATURE_FLAGS.WHITELABEL_BRANDING) {
+                // Add company name placeholders that will be replaced by license system
+                const title = document.querySelector('h1');
+                if (title && !title.querySelector('.company-name-placeholder')) {
+                    const placeholder = document.createElement('span');
+                    placeholder.className = 'company-name-placeholder';
+                    placeholder.textContent = 'Azure Billing Report Generator';
+                    title.innerHTML = '<i class="fas fa-chart-line me-3"></i>' + placeholder.outerHTML;
+                }
+            }
+
+            console.log('🚀 Feature flags initialized:', window.FEATURE_FLAGS);
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeFeatureFlags);
+        } else {
+            initializeFeatureFlags();
         }
     </script>
 
